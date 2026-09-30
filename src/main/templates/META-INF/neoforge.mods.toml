@@ -1,0 +1,53 @@
+
+modLoader="javafml" #mandatory
+
+loaderVersion="${loader_version_range}" #mandatory
+
+license="${mod_license}"
+
+[[mods]] #mandatory
+
+modId="${mod_id}" #mandatory
+
+version="${mod_version}" #mandatory
+
+displayName="${mod_name}" #mandatory
+
+authors="devxieyc"
+
+description='''
+Choose what to keep when you die - for a price. Open a selection screen on death,
+spend XP to keep items, while other players can race you to loot them.
+'''
+
+[[mods]]
+
+modId="mvedebug"
+
+version="${mod_version}"
+
+displayName="MVE Debug"
+
+description='''
+In-game instrumentation for MVE: /mvedebug die|state|xp plus death pipeline spy logging.
+'''
+
+#[[mixins]]
+#config="${mod_id}.mixins.json"
+
+#[[accessTransformers]]
+#file="META-INF/accesstransformer.cfg"
+
+[[dependencies.${mod_id}]] #optional
+    modId="neoforge" #mandatory
+    type="required" #mandatory
+    versionRange="[${neo_version},)" #mandatory
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"

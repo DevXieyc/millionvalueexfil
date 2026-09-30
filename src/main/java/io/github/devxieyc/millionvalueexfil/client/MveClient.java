@@ -1,0 +1,77 @@
+// Million Value Exfil - client payload handlers
+package io.github.devxieyc.millionvalueexfil.client;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.DeathScreen;
+import net.minecraft.network.chat.Component;
+import io.github.devxieyc.millionvalueexfil.Mve;
+import io.github.devxieyc.millionvalueexfil.MveNet;
+
+public final class MveClient {
+    private static final long PREPARE_TTL_MS = 5000;
+    private static volatile long prepareStamp;
+
+    private MveClient() {}
+
+    public static void handlePrepare() {
+        prepareStamp = System.currentTimeMillis();
+    }
+
+    public static boolean consumePrepare() {
+        if (System.currentTimeMillis() - prepareStamp > PREPARE_TTL_MS) return false;
+        prepareStamp = 0;
+        return true;
+    }
+
+    public static void tickPrepareFallback() {
+        long stamp = prepareStamp;
+        if (stamp == 0 || System.currentTimeMillis() - stamp <= PREPARE_TTL_MS) return;
+        prepareStamp = 0;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null && mc.player.isDeadOrDying() && mc.screen == null) {
+            boolean hardcore = mc.level != null && mc.level.getLevelData().isHardcore();
+            mc.setScreen(new DeathScreen(Component.empty(), hardcore));
+        }
+    }
+
+    public static void handleView(MveNet.ViewPayload payload) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        if (payload.mode() == MveNet.ViewPayload.MODE_DEATH) {
+            if (!mc.player.isDeadOrDying()) return;
+            prepareStamp = 0;
+            if (mc.screen instanceof MveDeathScreen screen && screen.matches(payload.txnId())) {
+                screen.update(payload);
+            } else {
+                Mve.LOGGER.info("[MVE] opening death screen");
+                mc.setScreen(new MveDeathScreen(payload));
+            }
+        } else {
+            if (mc.screen instanceof PvpScreen screen && screen.matches(payload.ownerId())) {
+                screen.update(payload);
+            } else if (!(mc.screen instanceof MveDeathScreen)) {
+                Mve.LOGGER.info("[MVE] opening pvp screen");
+                mc.setScreen(new PvpScreen(payload));
+            }
+        }
+    }
+
+    public static void handleClose(MveNet.ClosePayload payload) {
+        Minecraft mc = Minecraft.getInstance();
+        prepareStamp = 0;
+        if (mc.screen instanceof PvpScreen screen && screen.matches(payload.ownerId())) {
+            mc.setScreen(null);
+            return;
+        }
+        if (mc.player != null && mc.player.isDeadOrDying() && mc.screen == null) {
+            boolean hardcore = mc.level != null && mc.level.getLevelData().isHardcore();
+            mc.setScreen(new DeathScreen(Component.empty(), hardcore));
+        }
+    }
+
+    public static void registerRenderers(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(
+                io.github.devxieyc.millionvalueexfil.entity.MveEntities.DEBUG_CORPSE.get(),
+                DebugCorpseRenderer::new);
+    }
+}

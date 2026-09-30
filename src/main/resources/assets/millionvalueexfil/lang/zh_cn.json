@@ -1,0 +1,14 @@
+{
+  "mve.death.title": "你死了！",
+  "mve.death.kept": "已保留物品",
+  "mve.death.select": "请选择需要保留的物品",
+  "mve.death.respawn": "重生",
+  "mve.death.title_screen": "标题屏幕",
+  "mve.death.exit_title": "返回标题画面？",
+  "mve.death.exit_msg": "现在退出将视为放弃本次选择，所有物品将按死亡掉落处理。",
+  "mve.death.to_title": "标题画面",
+  "mve.death.back": "返回",
+  "mve.death.timer": "剩余%s",
+  "mve.pvp.title": "拾取物品",
+  "mve.pvp.inventory": "物品栏"
+}

@@ -1,0 +1,14 @@
+{
+  "mve.death.title": "You Died!",
+  "mve.death.kept": "Kept items",
+  "mve.death.select": "Choose items to keep",
+  "mve.death.respawn": "Respawn",
+  "mve.death.title_screen": "Title screen",
+  "mve.death.exit_title": "Return to title screen?",
+  "mve.death.exit_msg": "Leaving now counts as abandoning the selection. All carried items will drop.",
+  "mve.death.to_title": "Title screen",
+  "mve.death.back": "Back",
+  "mve.death.timer": "%s left",
+  "mve.pvp.title": "Pick up items",
+  "mve.pvp.inventory": "Inventory"
+}
