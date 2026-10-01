@@ -70,8 +70,14 @@ public final class MveDeathScreen extends Screen {
 
     private void confirmExit() {
         this.minecraft.setScreen(new ConfirmScreen(ok -> {
-            if (ok) this.minecraft.disconnect(null);
-            else this.minecraft.setScreen(this);
+            if (ok) {
+                if (this.minecraft.level != null) this.minecraft.level.disconnect();
+                this.minecraft.disconnect(new net.minecraft.client.gui.screens.GenericMessageScreen(
+                        Component.translatable("menu.savingLevel")));
+                this.minecraft.setScreen(new net.minecraft.client.gui.screens.TitleScreen());
+            } else {
+                this.minecraft.setScreen(this);
+            }
         }, Component.translatable("mve.death.exit_title"), Component.translatable("mve.death.exit_msg"),
                 Component.translatable("mve.death.to_title"), Component.translatable("mve.death.back")));
     }

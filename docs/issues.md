@@ -14,6 +14,7 @@
 | IS4 | 倒计时结束后物品未立即掉落（感知为重生/退出才掉落） | FIXED | 日志证实超时结算立即执行（死亡后整 30s），掉落发生在遗体位置；settle 日志补充掉落计数与坐标以便复核。若仍复现请提供当次日志 |
 | IS5 | PVP 拾取页面反馈 | OPEN | 等待下一轮反馈 |
 | IS6 | 经验条填充宽度与网格未对齐 | FIXED | 条宽改为与网格同宽（162），面板 182 对齐快捷栏 |
+| IS7 | 单人世界死亡后选择退出至标题崩溃（NPE: gameMode null） | FIXED | 根因：`disconnect(null)` 使断开过程中的中间 tick 以 pause=false 运行，`gameMode.tick()` 在 `gameMode` 已被置空而 `level` 尚未清空的窗口内 NPE。原版传 `GenericMessageScreen`（isPauseScreen=true → pause=true 跳过守卫）故不崩。修复：完全复刻原版退出流程 `level.disconnect()` → `disconnect(GenericMessageScreen("menu.savingLevel"))` → `setScreen(TitleScreen)` |
 
 ## 与设计书的有意偏离（备案）
 
