@@ -8,7 +8,6 @@ import io.github.devxieyc.millionvalueexfil.TxManager;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
@@ -19,11 +18,9 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 @Mod(MveDebug.MODID)
 public final class MveDebug {
     public static final String MODID = "mvedebug";
-    public static final net.neoforged.neoforge.registries.DeferredRegister<EntityType<?>> ENTITY_TYPES =
-            net.neoforged.neoforge.registries.DeferredRegister.create(net.minecraft.core.registries.Registries.ENTITY_TYPE, MODID);
 
     public MveDebug(IEventBus modEventBus, ModContainer modContainer) {
-        ENTITY_TYPES.register(modEventBus);
+        MveDebugEntities.TYPES.register(modEventBus);
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(MveDebug::registerRenderers);
         }

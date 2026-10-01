@@ -20,6 +20,8 @@
 | IS15 | LivingDropsEvent 托管优先级与 corelib 同为 LOWEST：注册序竞态；MVE 先行时 corelib 生成空墓 | OPEN（调查完成） | 修正：托管优先级上移 LOW（位于 NORMAL 调整者之后、LOWEST 墓碑之前），全托管时取消事件压制空墓与低位消费者；被取消后 corelib 的 deathMap 快照保留为结算重放的数据源（闭环无泄漏风险见三方管线报告）。见三方管线报告修正点2 |
 | IS16 | MVE 死亡界面应以类型语义成为"死亡屏"：GUI 锁定类模组（如 PlayerRevive disableAllGUIAccess）按 `instanceof DeathScreen` 放行白名单拦截非原版屏幕 | OPEN（调查完成） | 修正：MveDeathScreen / MvePendingScreen extends 原版 DeathScreen（已验证 public 构造器、非 final）。见三方管线报告修正点4 |
 | IS17 | DeathTx 未记录死亡来源（结算重放 `CommonHooks.onLivingDrops` 需要 source 参数）；断线玩家发包缺连接检查（互助模组登出即死场景） | OPEN（调查完成） | 修正：存 DamageType 的 ResourceKey；发包前检查连接。见三方管线报告修正点5 |
+| IS18 | 启动即崩：`mvedebug` 注册渲染器时 NPE（Trying to access unbound value: mvedebug:debug_corpse） | FIXED | 根因：调试实体迁移进 mvedebug 时留下两个同名 DeferredRegister——`MveDebug.ENTITY_TYPES`（空壳，挂了总线）与真正持有条目的 `MveDebugEntities.TYPES`（从未挂总线）。修复：删除空壳，构造器改挂 `MveDebugEntities.TYPES` |
+| IS19 | 倒计时未结束时把待选区物品全部选至保留区后，待选区面板整体消失（计时/经验条一并不可见） | FIXED | 根因：渲染侧 `!available.isEmpty()` 门闸把整个面板跳过。修复：待选区面板常驻（空网格 + 标题/倒计时/经验条仍在），GridView 空列表路径已确认安全 |
 | IS6 | 经验条填充宽度与网格未对齐 | FIXED | 条宽改为与网格同宽（162），面板 182 对齐快捷栏 |
 | IS7 | 单人世界死亡后选择退出至标题崩溃（NPE: gameMode null） | FIXED | 根因：`disconnect(null)` 使断开过程中的中间 tick 以 pause=false 运行，`gameMode.tick()` 在 `gameMode` 已被置空而 `level` 尚未清空的窗口内 NPE。原版传 `GenericMessageScreen`（isPauseScreen=true → pause=true 跳过守卫）故不崩。修复：完全复刻原版退出流程 `level.disconnect()` → `disconnect(GenericMessageScreen("menu.savingLevel"))` → `setScreen(TitleScreen)` |
 | IS8 | 经验条/面板被"遮蔽"、颜色发糊 | FIXED | 根因：`Screen.render` 开头会再次调用 `renderBackground`，红色渐变在自绘内容之后被二次叠加（按钮在其后绘制所以清晰）。修复：render 不再调 super.render，改为显式调用一次 renderBackground + 手动遍历 renderables |

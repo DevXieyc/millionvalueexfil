@@ -150,24 +150,21 @@ public final class MveDeathScreen extends Screen {
         this.keptGridY = y0 + 27;
         MveNet.EntryData keptHover = kept.render(gfx, this.minecraft, x0 + 2, this.keptGridY, mx, my);
 
-        MveNet.EntryData availHover = null;
-        if (!available.isEmpty()) {
-            int availY = y0 + sectionH + 12;
-            int availPanelY = availY - 3;
-            drawPanel(gfx, x0, availPanelY, PANEL_WIDTH, sectionH + 6);
-            Component timerComp = Component.translatable("mve.death.timer", timerText());
-            int timerColor = this.ticks <= FADE_TICKS ? 0xFFFF5555 : this.ticks <= YELLOW_TICKS ? 0xFFFFFF55 : 0xFFFFFFFF;
-            gfx.drawString(this.font, Component.translatable("mve.death.select"), x0 + 2, availY, 0xFFFFFFFF);
-            gfx.drawString(this.font, timerComp, x0 + PANEL_WIDTH - this.font.width(timerComp) - 2, availY, timerColor);
-            xpBar(gfx, x0 + 2, availY + 20, XpMath.levelProgress(view.xpTotal()));
-            drawLevel(gfx, x0 + 2, availY + 20, view.xpTotal());
-            this.availGridY = availY + 27;
-            availHover = available.render(gfx, this.minecraft, x0 + 2, this.availGridY, mx, my);
-            if (this.ticks < FADE_TICKS) {
-                float fade = 1.0F - this.ticks / (float) FADE_TICKS;
-                int alpha = Math.min(210, (int) (fade * 150 + 55 * (float) Math.abs(Math.sin(this.ticks * 0.35))));
-                gfx.fill(x0, availPanelY, x0 + PANEL_WIDTH, availPanelY + sectionH + 6, alpha << 24 | 0x060606);
-            }
+        int availY = y0 + sectionH + 12;
+        int availPanelY = availY - 3;
+        drawPanel(gfx, x0, availPanelY, PANEL_WIDTH, sectionH + 6);
+        Component timerComp = Component.translatable("mve.death.timer", timerText());
+        int timerColor = this.ticks <= FADE_TICKS ? 0xFFFF5555 : this.ticks <= YELLOW_TICKS ? 0xFFFFFF55 : 0xFFFFFFFF;
+        gfx.drawString(this.font, Component.translatable("mve.death.select"), x0 + 2, availY, 0xFFFFFFFF);
+        gfx.drawString(this.font, timerComp, x0 + PANEL_WIDTH - this.font.width(timerComp) - 2, availY, timerColor);
+        xpBar(gfx, x0 + 2, availY + 20, XpMath.levelProgress(view.xpTotal()));
+        drawLevel(gfx, x0 + 2, availY + 20, view.xpTotal());
+        this.availGridY = availY + 27;
+        MveNet.EntryData availHover = available.render(gfx, this.minecraft, x0 + 2, this.availGridY, mx, my);
+        if (this.ticks < FADE_TICKS) {
+            float fade = 1.0F - this.ticks / (float) FADE_TICKS;
+            int alpha = Math.min(210, (int) (fade * 150 + 55 * (float) Math.abs(Math.sin(this.ticks * 0.35))));
+            gfx.fill(x0, availPanelY, x0 + PANEL_WIDTH, availPanelY + sectionH + 6, alpha << 24 | 0x060606);
         }
         this.tooltipEntry = availHover != null ? availHover : keptHover;
 
