@@ -297,46 +297,16 @@ public final class TxManager {
 
     private static void dropEntries(ServerLevel level, BlockPos pos, DeathTx txn, EntryFilter filter) {
         if (level == null) return;
-        BlockPos dropPos = safeDropPos(level, pos);
         RandomSource random = level.random;
         List<TxEntry> dropped = new ArrayList<>();
         for (TxEntry entry : txn.entries) {
             if (filter.test(entry)) {
-                spawnDrop(level, dropPos, entry.stack, random);
+                spawnDrop(level, pos, entry.stack, random);
                 dropped.add(entry);
             }
         }
         txn.entries.removeAll(dropped);
         txn.version++;
-    }
-
-    private static boolean inBurningBlock(ServerLevel level, BlockPos pos) {
-        return level.getFluidState(pos).is(net.minecraft.tags.FluidTags.LAVA)
-                || level.getBlockState(pos).is(net.minecraft.tags.BlockTags.FIRE);
-    }
-
-    private static BlockPos safeDropPos(ServerLevel level, BlockPos pos) {
-        if (!inBurningBlock(level, pos)) return pos;
-        for (int r = 1; r <= 8; r++) {
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
-                    for (int dy = 0; dy <= 2; dy++) {
-                        BlockPos p = pos.offset(dx, dy, dz);
-                        if (level.getBlockState(p).isAir()
-                                && !level.getBlockState(p.below()).isAir()
-                                && !inBurningBlock(level, p)
-                                && !inBurningBlock(level, p.below())) {
-                            Mve.LOGGER.info("[MVE] drop position unsafe (lava/fire), relocated {} -> {}",
-                                    pos.toShortString(), p.toShortString());
-                            return p;
-                        }
-                    }
-                }
-            }
-        }
-        Mve.LOGGER.info("[MVE] drop position unsafe (lava/fire), no safe spot within 8 blocks, dropping anyway");
-        return pos;
     }
 
     private static void spawnDrop(ServerLevel level, BlockPos pos, ItemStack stack, RandomSource random) {
