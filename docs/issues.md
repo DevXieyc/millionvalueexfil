@@ -15,6 +15,7 @@
 | IS5 | PVP 拾取页面反馈 | FIXED（阶段一） | 重做为**原版大箱子容器**：注册自定义 `MenuType`（pvp_pickup），服务端开真菜单并同步槽位；上半部分 6×9 拾取格沿用 generic_54 贴图、点击走容器点击包（左键/Shift 均拾取，物品从遗体位置抛向拾取者）；下半部分为**真实槽位**绑定的玩家物品栏（与打开容器行为一致，整理类模组可识别），可整理论玩家自己的物品但不影响遗体物品。多观察者同步：任一拾取会清空所有已打开菜单的对应槽位并 broadcastChanges。旧 payload 式 PVP 界面（TakePayload/LeavePayload/PvpScreen）已移除 |
 | IS11 | 右键遗体/死亡玩家无法打开 PVP 页面 | FIXED | 根因：服务端菜单已打开并下发 `ClientboundOpenScreenPacket`，但客户端未为自定义 MenuType 注册 Screen，`MenuScreens` 每次尝试都失败（日志: Failed to create screen for menu type: millionvalueexfil:pvp_pickup）。修复：客户端通过 `RegisterMenuScreensEvent` 注册 `PvpPickupScreen` |
 | IS12 | 遗体实体名称应常显且显示归属玩家与剩余时间 | FIXED | `setCustomNameVisible(true)` + 每秒刷新名称为"归属玩家 (剩余秒s)" |
+| IS13 | MVE 托管结束后未保留物品应可交由墓碑类模组托管（而非原地爆出） | OPEN（调查完成） | 见 docs/研究-墓碑托管交接.md。结论：管线内存在接管窗口（LivingDropsEvent）；管线后无标准入口，但可在结算时用 `CommonHooks.onLivingDrops` 重放掉落事件实现通用交接（corelib 源码已证实 GraveStone 会接住）。另发现 corelib 与 MVE 同为 LOWEST 的竞态与空墓问题。待实施 |
 | IS6 | 经验条填充宽度与网格未对齐 | FIXED | 条宽改为与网格同宽（162），面板 182 对齐快捷栏 |
 | IS7 | 单人世界死亡后选择退出至标题崩溃（NPE: gameMode null） | FIXED | 根因：`disconnect(null)` 使断开过程中的中间 tick 以 pause=false 运行，`gameMode.tick()` 在 `gameMode` 已被置空而 `level` 尚未清空的窗口内 NPE。原版传 `GenericMessageScreen`（isPauseScreen=true → pause=true 跳过守卫）故不崩。修复：完全复刻原版退出流程 `level.disconnect()` → `disconnect(GenericMessageScreen("menu.savingLevel"))` → `setScreen(TitleScreen)` |
 | IS8 | 经验条/面板被"遮蔽"、颜色发糊 | FIXED | 根因：`Screen.render` 开头会再次调用 `renderBackground`，红色渐变在自绘内容之后被二次叠加（按钮在其后绘制所以清晰）。修复：render 不再调 super.render，改为显式调用一次 renderBackground + 手动遍历 renderables |
