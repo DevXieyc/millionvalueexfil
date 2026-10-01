@@ -1,5 +1,5 @@
 // Million Value Exfil - debug corpse entity
-package io.github.devxieyc.millionvalueexfil.entity;
+package io.github.devxieyc.millionvalueexfil.debug;
 
 import io.github.devxieyc.millionvalueexfil.Mve;
 import io.github.devxieyc.millionvalueexfil.TxManager;

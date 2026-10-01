@@ -1,5 +1,5 @@
 // Million Value Exfil - debug corpse renderer (name tag only)
-package io.github.devxieyc.millionvalueexfil.client;
+package io.github.devxieyc.millionvalueexfil.debug;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -7,7 +7,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.resources.ResourceLocation;
-import io.github.devxieyc.millionvalueexfil.entity.DebugCorpseEntity;
+import io.github.devxieyc.millionvalueexfil.debug.DebugCorpseEntity;
 
 public final class DebugCorpseRenderer extends EntityRenderer<DebugCorpseEntity> {
     public DebugCorpseRenderer(EntityRendererProvider.Context context) {

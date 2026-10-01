@@ -65,7 +65,7 @@ public final class TxEvents {
         if (event.getLevel().isClientSide()) return;
         if (event.getHand() != InteractionHand.MAIN_HAND) return;
         if (!(event.getEntity() instanceof ServerPlayer viewer)) return;
-        if (event.getTarget() instanceof io.github.devxieyc.millionvalueexfil.entity.DebugCorpseEntity corpse) {
+        if (event.getTarget() instanceof io.github.devxieyc.millionvalueexfil.debug.DebugCorpseEntity corpse) {
             if (TxManager.openPvpDummy(viewer, corpse)) event.setCanceled(true);
             return;
         }

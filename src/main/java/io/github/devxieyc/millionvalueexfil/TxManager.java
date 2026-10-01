@@ -173,8 +173,10 @@ public final class TxManager {
             }
         }
         if (matched == 0) {
-            Mve.LOGGER.info("[MVE] commit aborted: no item survived into the drop flow ({} disabled)", entries.size());
-            restoreXp(player, pending);
+            Mve.LOGGER.info("[MVE] commit aborted: no item survived into the drop flow ({} disabled), "
+                    + "vanilla-equivalent xp orbs dropped", entries.size());
+            ExperienceOrb.award(player.serverLevel(), Vec3.atCenterOf(pending.pos()),
+                    Math.min(7 * pending.xpLevel(), 100));
             MveNet.sendToPlayer(player, new MveNet.ClosePayload(player.getUUID()));
             return;
         }

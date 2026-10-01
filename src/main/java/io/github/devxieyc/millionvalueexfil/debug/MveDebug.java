@@ -8,17 +8,30 @@ import io.github.devxieyc.millionvalueexfil.TxManager;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 @Mod(MveDebug.MODID)
 public final class MveDebug {
     public static final String MODID = "mvedebug";
+    public static final net.neoforged.neoforge.registries.DeferredRegister<EntityType<?>> ENTITY_TYPES =
+            net.neoforged.neoforge.registries.DeferredRegister.create(net.minecraft.core.registries.Registries.ENTITY_TYPE, MODID);
 
     public MveDebug(IEventBus modEventBus, ModContainer modContainer) {
+        ENTITY_TYPES.register(modEventBus);
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            modEventBus.addListener(MveDebug::registerRenderers);
+        }
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(MveDebug::registerCommands);
+    }
+
+    public static void registerRenderers(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(MveDebugEntities.DEBUG_CORPSE.get(), DebugCorpseRenderer::new);
     }
 
     private static void registerCommands(RegisterCommandsEvent event) {
@@ -66,8 +79,7 @@ public final class MveDebug {
     }
 
     private static int spawnCorpse(ServerPlayer player, int seconds) {
-        io.github.devxieyc.millionvalueexfil.entity.DebugCorpseEntity corpse =
-                io.github.devxieyc.millionvalueexfil.entity.MveEntities.DEBUG_CORPSE.get().create(player.serverLevel());
+        DebugCorpseEntity corpse = MveDebugEntities.DEBUG_CORPSE.get().create(player.serverLevel());
         corpse.setPos(player.position());
         corpse.setYRot(player.getYRot());
         corpse.setLifeTicks(seconds * 20);

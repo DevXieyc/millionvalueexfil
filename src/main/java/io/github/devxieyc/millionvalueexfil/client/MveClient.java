@@ -69,12 +69,6 @@ public final class MveClient {
         }
     }
 
-    public static void registerRenderers(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
-        event.registerEntityRenderer(
-                io.github.devxieyc.millionvalueexfil.entity.MveEntities.DEBUG_CORPSE.get(),
-                DebugCorpseRenderer::new);
-    }
-
     public static void registerMenuScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
         event.register(io.github.devxieyc.millionvalueexfil.menu.MveMenus.PVP_PICKUP.get(), PvpPickupScreen::new);
     }
