@@ -1,6 +1,8 @@
 // Million Value Exfil - XP economy math
 package io.github.devxieyc.millionvalueexfil;
 
+import net.minecraft.util.Mth;
+
 public final class XpMath {
     private XpMath() {}
 
@@ -31,6 +33,18 @@ public final class XpMath {
 
     public static int deathDrop(int points) {
         return Math.min(7 * levelForPoints(points), 100);
+    }
+
+    public static long levelTotal(int level) {
+        return totalAt(level);
+    }
+
+    public static float levelProgress(int points) {
+        int level = levelForPoints(points);
+        long current = totalAt(level);
+        long next = totalAt(level + 1);
+        if (next <= current) return 1.0F;
+        return Mth.clamp((float) ((points - current) / (double) (next - current)), 0.0F, 1.0F);
     }
 
     private static long totalAt(int level) {

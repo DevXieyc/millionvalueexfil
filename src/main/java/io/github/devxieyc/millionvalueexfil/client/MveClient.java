@@ -15,6 +15,11 @@ public final class MveClient {
 
     public static void handlePrepare() {
         prepareStamp = System.currentTimeMillis();
+        Minecraft mc = Minecraft.getInstance();
+        if (!(mc.screen instanceof MvePendingScreen)) {
+            Mve.LOGGER.info("[MVE] prepare received, holding placeholder screen");
+            mc.setScreen(new MvePendingScreen());
+        }
     }
 
     public static boolean consumePrepare() {
@@ -28,9 +33,13 @@ public final class MveClient {
         if (stamp == 0 || System.currentTimeMillis() - stamp <= PREPARE_TTL_MS) return;
         prepareStamp = 0;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && mc.player.isDeadOrDying() && mc.screen == null) {
-            boolean hardcore = mc.level != null && mc.level.getLevelData().isHardcore();
-            mc.setScreen(new DeathScreen(Component.empty(), hardcore));
+        if (mc.screen instanceof MvePendingScreen || mc.screen == null) {
+            if (mc.player != null && mc.player.isDeadOrDying()) {
+                boolean hardcore = mc.level != null && mc.level.getLevelData().isHardcore();
+                mc.setScreen(new DeathScreen(Component.empty(), hardcore));
+            } else {
+                mc.setScreen(null);
+            }
         }
     }
 
@@ -63,9 +72,13 @@ public final class MveClient {
             mc.setScreen(null);
             return;
         }
-        if (mc.player != null && mc.player.isDeadOrDying() && mc.screen == null) {
-            boolean hardcore = mc.level != null && mc.level.getLevelData().isHardcore();
-            mc.setScreen(new DeathScreen(Component.empty(), hardcore));
+        if (mc.screen instanceof MvePendingScreen) {
+            if (mc.player != null && mc.player.isDeadOrDying()) {
+                boolean hardcore = mc.level != null && mc.level.getLevelData().isHardcore();
+                mc.setScreen(new DeathScreen(Component.empty(), hardcore));
+            } else {
+                mc.setScreen(null);
+            }
         }
     }
 

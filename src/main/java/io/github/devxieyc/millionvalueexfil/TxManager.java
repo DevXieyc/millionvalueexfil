@@ -147,6 +147,7 @@ public final class TxManager {
         if (eventCanceled) {
             Mve.LOGGER.info("[MVE] drops event canceled by another mod");
             restoreXp(player, pending);
+            MveNet.sendToPlayer(player, new MveNet.ClosePayload(player.getUUID()));
             return;
         }
         List<TxEntry> entries = new ArrayList<>();
@@ -172,6 +173,7 @@ public final class TxManager {
         if (matched == 0) {
             Mve.LOGGER.info("[MVE] commit aborted: no item survived into the drop flow ({} disabled)", entries.size());
             restoreXp(player, pending);
+            MveNet.sendToPlayer(player, new MveNet.ClosePayload(player.getUUID()));
             return;
         }
         Mve.LOGGER.info("[MVE] transaction created: {} kept-custody + {} disabled, {} drop(s) left for others",
@@ -215,6 +217,7 @@ public final class TxManager {
     private static void settle(ServerPlayer player, DeathTx txn) {
         ServerLevel level = player.server.getLevel(txn.dimension);
         if (level == null) level = player.serverLevel();
+        int dropped = (int) txn.entries.stream().filter(e -> e.state == TxEntry.State.DEFAULT).count();
         dropDefaults(level, txn.pos, txn);
         txn.entries.removeIf(entry -> entry.state == TxEntry.State.DISABLED);
         int fee = txn.cost();
@@ -227,8 +230,8 @@ public final class TxManager {
         txn.ticksLeft = 0;
         txn.version++;
         writeTxn(player, txn);
-        Mve.LOGGER.info("[MVE] settled: {} item(s) kept for return, xp keep={} lost-orbs={}",
-                txn.reservedCount(), keep, lost > 0 ? XpMath.deathDrop(lost) : 0);
+        Mve.LOGGER.info("[MVE] settled: {} item(s) kept for return, {} dropped at {}, xp keep={} lost-orbs={}",
+                txn.reservedCount(), dropped, txn.pos.toShortString(), keep, lost > 0 ? XpMath.deathDrop(lost) : 0);
         broadcastView(player, txn, false);
         closeAll(player.server, txn.ownerId);
     }

@@ -42,7 +42,7 @@ public final class PvpScreen extends Screen {
 
         gfx.drawCenteredString(this.font, this.title, this.width / 2, 10, 0xFFFFFFFF);
 
-        int panelW = 9 * 18 + 14;
+        int panelW = 9 * 18 + 20;
         int x0 = (cw - panelW) / 2;
         int y0 = Math.max(30 / cs, (ch - (24 + rows * 18) - 30) / 2);
         int invRows = 4;

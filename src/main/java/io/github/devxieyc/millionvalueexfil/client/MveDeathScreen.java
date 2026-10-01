@@ -2,6 +2,7 @@
 package io.github.devxieyc.millionvalueexfil.client;
 
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.ConfirmScreen;
@@ -10,12 +11,15 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import io.github.devxieyc.millionvalueexfil.MveNet;
+import io.github.devxieyc.millionvalueexfil.XpMath;
 
 public final class MveDeathScreen extends Screen {
     private static final ResourceLocation XP_BG = ResourceLocation.withDefaultNamespace("hud/experience_bar_background");
     private static final ResourceLocation XP_FILL = ResourceLocation.withDefaultNamespace("hud/experience_bar_progress");
     private static final int FADE_TICKS = 200;
-    private static final int HEADER_BOTTOM = 56;
+    private static final int YELLOW_TICKS = 600;
+    private static final int BAR_WIDTH = 9 * 18;
+    private static final int PANEL_WIDTH = BAR_WIDTH + 20;
 
     private final UUID txnId;
     private MveNet.ViewPayload view;
@@ -27,7 +31,6 @@ public final class MveDeathScreen extends Screen {
     private int gridRows = 2;
     private int keptGridY;
     private int availGridY;
-    private int availPanelY;
 
     public MveDeathScreen(MveNet.ViewPayload view) {
         super(Component.translatable("mve.death.title"));
@@ -94,69 +97,69 @@ public final class MveDeathScreen extends Screen {
 
     @Override
     public void render(GuiGraphics gfx, int mouseX, int mouseY, float partialTick) {
-        this.contentScale = this.height >= 340 && this.width >= 400 ? 2 : 1;
-        int cs = this.contentScale;
+        int cs = this.height >= 340 && this.width >= 400 ? 2 : 1;
+        this.contentScale = cs;
 
         gfx.pose().pushPose();
         gfx.pose().scale(2.0F, 2.0F, 1.0F);
-        gfx.drawCenteredString(this.font, this.title, this.width / 4, 8, 0xFFFFFFFF);
+        gfx.drawCenteredString(this.font, this.title, this.width / 4, 5, 0xFFFFFFFF);
         gfx.pose().popPose();
         gfx.drawCenteredString(this.font, view.deathMessage(), this.width / 2, 30, 0xFFFFFFFF);
         boolean showScore = this.height >= 300;
+        int headerBottom = 32;
         if (showScore) {
             Component scoreText = Component.translatable("deathScreen.score.value",
-                    Component.literal(String.valueOf(view.score())).withStyle(net.minecraft.ChatFormatting.YELLOW));
+                    Component.literal(String.valueOf(view.score())).withStyle(ChatFormatting.YELLOW));
             gfx.drawCenteredString(this.font, scoreText, this.width / 2, 42, 0xFFFFFFFF);
+            headerBottom = 54;
         }
-        int headerBottom = showScore ? 54 : 42;
 
         int cw = this.width / cs;
-        int ch = this.height / cs;
-        int rows = Mth.clamp((ch - HEADER_BOTTOM / cs - 40 / cs - 10) / 72, 2, 4);
+        int availH = ch(cs) - Mth.ceil(headerBottom / (float) cs) - Mth.ceil(48f / cs);
+        int rows = Mth.clamp((availH - 74) / 36, 2, 6);
         this.gridRows = rows;
         kept.layout(9, rows);
         available.layout(9, rows);
 
-        int panelW = 9 * 18 + 14;
-        int x0 = (cw - panelW) / 2;
+        int x0 = (cw - PANEL_WIDTH) / 2;
         int sectionH = 31 + rows * 18;
-        int y0 = HEADER_BOTTOM / cs + 4;
+        int y0 = Mth.ceil(headerBottom / (float) cs) + 2;
 
         long keptCount = view.entries().stream().filter(e -> e.state() == 1).count();
         long maxKeep = Math.max(keptCount, maxKeep());
+        int predictedPoints = keepEstimate();
 
         gfx.pose().pushPose();
         gfx.pose().scale(cs, cs, 1.0F);
         double mx = mouseX / (double) cs;
         double my = mouseY / (double) cs;
 
-        drawPanel(gfx, x0, y0 - 3, panelW, sectionH + 6);
+        drawPanel(gfx, x0, y0 - 3, PANEL_WIDTH, sectionH + 6);
         String capacity = "(" + keptCount + "/" + maxKeep + ")";
-        gfx.drawString(this.font, Component.translatable("mve.death.kept"), x0 + 2, y0, 0xFFFFFF55);
-        gfx.drawString(this.font, Component.literal(capacity), x0 + panelW - this.font.width(capacity) - 2, y0, 0xFF55FF55);
-        gfx.drawString(this.font, Component.literal(String.valueOf(keptCount)), x0 + 2, y0 + 10, 0xFF55FF55);
-        xpBar(gfx, x0 + 2, y0 + 20, barRatio(keptCount, maxKeep));
+        gfx.drawString(this.font, Component.translatable("mve.death.kept"), x0 + 2, y0, 0xFFFFFFFF);
+        gfx.drawString(this.font, Component.literal(capacity), x0 + PANEL_WIDTH - this.font.width(capacity) - 2, y0, 0xFFFFFFFF);
+        drawLevel(gfx, x0 + 2, y0 + 11, predictedPoints);
+        xpBar(gfx, x0 + 2, y0 + 20, XpMath.levelProgress(predictedPoints));
         this.keptGridY = y0 + 27;
         MveNet.EntryData keptHover = kept.render(gfx, this.minecraft, x0 + 2, this.keptGridY, mx, my);
 
-        int availY = y0 + sectionH + 12;
-        this.availPanelY = availY - 3;
         MveNet.EntryData availHover = null;
         if (!available.isEmpty()) {
-            drawPanel(gfx, x0, this.availPanelY, panelW, sectionH + 6);
-            String remainText = String.valueOf(view.xpRemain());
+            int availY = y0 + sectionH + 12;
+            int availPanelY = availY - 3;
+            drawPanel(gfx, x0, availPanelY, PANEL_WIDTH, sectionH + 6);
             Component timerComp = Component.translatable("mve.death.timer", timerText());
-            gfx.drawString(this.font, Component.translatable("mve.death.select"), x0 + 2, availY, 0xFFFFFF55);
-            gfx.drawString(this.font, timerComp, x0 + panelW - this.font.width(timerComp) - 2, availY,
-                    this.ticks < FADE_TICKS ? 0xFFFF7070 : 0xFFFFFFFF);
-            gfx.drawString(this.font, Component.literal(remainText), x0 + 2, availY + 10, 0xFF55FF55);
-            xpBar(gfx, x0 + 2, availY + 20, view.xpTotal() <= 0 ? 0.0F : (float) view.xpRemain() / view.xpTotal());
+            int timerColor = this.ticks <= FADE_TICKS ? 0xFFFF5555 : this.ticks <= YELLOW_TICKS ? 0xFFFFFF55 : 0xFFFFFFFF;
+            gfx.drawString(this.font, Component.translatable("mve.death.select"), x0 + 2, availY, 0xFFFFFFFF);
+            gfx.drawString(this.font, timerComp, x0 + PANEL_WIDTH - this.font.width(timerComp) - 2, availY, timerColor);
+            drawLevel(gfx, x0 + 2, availY + 11, view.xpTotal());
+            xpBar(gfx, x0 + 2, availY + 20, XpMath.levelProgress(view.xpTotal()));
             this.availGridY = availY + 27;
             availHover = available.render(gfx, this.minecraft, x0 + 2, this.availGridY, mx, my);
             if (this.ticks < FADE_TICKS) {
                 float fade = 1.0F - this.ticks / (float) FADE_TICKS;
                 int alpha = Math.min(210, (int) (fade * 150 + 55 * (float) Math.abs(Math.sin(this.ticks * 0.35))));
-                gfx.fill(x0, this.availPanelY, x0 + panelW, this.availPanelY + sectionH + 6, alpha << 24 | 0x060606);
+                gfx.fill(x0, availPanelY, x0 + PANEL_WIDTH, availPanelY + sectionH + 6, alpha << 24 | 0x060606);
             }
         }
         this.tooltipEntry = availHover != null ? availHover : keptHover;
@@ -170,13 +173,20 @@ public final class MveDeathScreen extends Screen {
         }
     }
 
+    private int ch(int scale) {
+        return this.height / scale;
+    }
+
+    private void drawLevel(GuiGraphics gfx, int x, int y, int points) {
+        String text = String.valueOf(XpMath.levelForPoints(points));
+        int tx = x + (BAR_WIDTH - this.font.width(text)) / 2;
+        gfx.drawString(this.font, text, tx + 1, y + 1, 0, false);
+        gfx.drawString(this.font, text, tx, y, 0x80FF20, false);
+    }
+
     private void drawPanel(GuiGraphics gfx, int x, int y, int w, int h) {
         gfx.fill(x, y, x + w, y + h, 0x90060606);
         gfx.renderOutline(x, y, w, h, 0xFF555555);
-    }
-
-    private float barRatio(long n, long max) {
-        return max <= 0 ? 0.0F : (float) ((double) n / max);
     }
 
     private long maxKeep() {
@@ -190,16 +200,19 @@ public final class MveDeathScreen extends Screen {
         return 1395 * n * (n + 1) / 1332;
     }
 
+    private int keepEstimate() {
+        return view.xpRemain();
+    }
+
     private String timerText() {
         int total = Math.max(0, (this.ticks + 19) / 20);
         return String.format("%02d:%02d", total / 60, total % 60);
     }
 
     private void xpBar(GuiGraphics gfx, int x, int y, float ratio) {
-        int width = 9 * 18;
-        gfx.blitSprite(XP_BG, x, y, width, 5);
-        int w = (int) (ratio * width);
-        if (w > 0) gfx.blitSprite(XP_FILL, 182, 5, 0, 0, x, y, Math.min(w, width), 5);
+        gfx.blitSprite(XP_BG, x, y, BAR_WIDTH, 5);
+        int w = (int) (ratio * BAR_WIDTH);
+        if (w > 0) gfx.blitSprite(XP_FILL, 182, 5, 0, 0, x, y, Math.min(w, BAR_WIDTH), 5);
     }
 
     @Override
