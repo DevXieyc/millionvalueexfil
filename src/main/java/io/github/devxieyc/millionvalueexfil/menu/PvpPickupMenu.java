@@ -68,6 +68,11 @@ public class PvpPickupMenu extends AbstractContainerMenu {
                 public boolean mayPickup(Player player) {
                     return false;
                 }
+
+                @Override
+                public boolean isActive() {
+                    return !this.getItem().isEmpty();
+                }
             });
         }
         for (int row = 0; row < 3; row++) {
@@ -102,6 +107,10 @@ public class PvpPickupMenu extends AbstractContainerMenu {
 
     public ItemStack pickupStack(int slot) {
         return this.pickup.getItem(slot);
+    }
+
+    public boolean isPickupSlot(Slot slot) {
+        return slot.container == this.pickup;
     }
 
     public void removeEntry(UUID entryId) {
