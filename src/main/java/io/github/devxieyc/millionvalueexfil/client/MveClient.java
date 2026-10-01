@@ -46,32 +46,19 @@ public final class MveClient {
     public static void handleView(MveNet.ViewPayload payload) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
-        if (payload.mode() == MveNet.ViewPayload.MODE_DEATH) {
-            if (!mc.player.isDeadOrDying()) return;
-            prepareStamp = 0;
-            if (mc.screen instanceof MveDeathScreen screen && screen.matches(payload.txnId())) {
-                screen.update(payload);
-            } else {
-                Mve.LOGGER.info("[MVE] opening death screen");
-                mc.setScreen(new MveDeathScreen(payload));
-            }
+        if (!mc.player.isDeadOrDying()) return;
+        prepareStamp = 0;
+        if (mc.screen instanceof MveDeathScreen screen && screen.matches(payload.txnId())) {
+            screen.update(payload);
         } else {
-            if (mc.screen instanceof PvpScreen screen && screen.matches(payload.ownerId())) {
-                screen.update(payload);
-            } else if (!(mc.screen instanceof MveDeathScreen)) {
-                Mve.LOGGER.info("[MVE] opening pvp screen");
-                mc.setScreen(new PvpScreen(payload));
-            }
+            Mve.LOGGER.info("[MVE] opening death screen");
+            mc.setScreen(new MveDeathScreen(payload));
         }
     }
 
     public static void handleClose(MveNet.ClosePayload payload) {
         Minecraft mc = Minecraft.getInstance();
         prepareStamp = 0;
-        if (mc.screen instanceof PvpScreen screen && screen.matches(payload.ownerId())) {
-            mc.setScreen(null);
-            return;
-        }
         if (mc.screen instanceof MvePendingScreen) {
             if (mc.player != null && mc.player.isDeadOrDying()) {
                 boolean hardcore = mc.level != null && mc.level.getLevelData().isHardcore();
@@ -86,5 +73,9 @@ public final class MveClient {
         event.registerEntityRenderer(
                 io.github.devxieyc.millionvalueexfil.entity.MveEntities.DEBUG_CORPSE.get(),
                 DebugCorpseRenderer::new);
+    }
+
+    public static void registerMenuScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
+        event.register(io.github.devxieyc.millionvalueexfil.menu.MveMenus.PVP.get(), PvpScreen::new);
     }
 }

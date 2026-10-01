@@ -114,43 +114,12 @@ public final class MveNet {
         }
     }
 
-    public record TakePayload(UUID txnId, UUID ownerId, int version, UUID entryId) implements CustomPacketPayload {
-        public static final Type<TakePayload> TYPE = new CustomPacketPayload.Type<>(
-                ResourceLocation.fromNamespaceAndPath(Mve.MODID, "take"));
-        public static final StreamCodec<ByteBuf, TakePayload> CODEC = StreamCodec.composite(
-                UUIDUtil.STREAM_CODEC, TakePayload::txnId,
-                UUIDUtil.STREAM_CODEC, TakePayload::ownerId,
-                ByteBufCodecs.VAR_INT, TakePayload::version,
-                UUIDUtil.STREAM_CODEC, TakePayload::entryId,
-                TakePayload::new
-        );
-
-        @Override
-        public Type<? extends CustomPacketPayload> type() {
-            return TYPE;
-        }
-    }
-
     public record ClosePayload(UUID ownerId) implements CustomPacketPayload {
         public static final Type<ClosePayload> TYPE = new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(Mve.MODID, "close"));
         public static final StreamCodec<ByteBuf, ClosePayload> CODEC = StreamCodec.composite(
                 UUIDUtil.STREAM_CODEC, ClosePayload::ownerId,
                 ClosePayload::new
-        );
-
-        @Override
-        public Type<? extends CustomPacketPayload> type() {
-            return TYPE;
-        }
-    }
-
-    public record LeavePayload(UUID ownerId) implements CustomPacketPayload {
-        public static final Type<LeavePayload> TYPE = new CustomPacketPayload.Type<>(
-                ResourceLocation.fromNamespaceAndPath(Mve.MODID, "leave_view"));
-        public static final StreamCodec<ByteBuf, LeavePayload> CODEC = StreamCodec.composite(
-                UUIDUtil.STREAM_CODEC, LeavePayload::ownerId,
-                LeavePayload::new
         );
 
         @Override
@@ -171,10 +140,6 @@ public final class MveNet {
         }
         registrar.playToServer(SelectPayload.TYPE, SelectPayload.CODEC,
                 (payload, context) -> TxManager.handleSelect((ServerPlayer) context.player(), payload));
-        registrar.playToServer(TakePayload.TYPE, TakePayload.CODEC,
-                (payload, context) -> TxManager.handleTake((ServerPlayer) context.player(), payload));
-        registrar.playToServer(LeavePayload.TYPE, LeavePayload.CODEC,
-                (payload, context) -> TxManager.handleViewerClose((ServerPlayer) context.player(), payload));
     }
 
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
