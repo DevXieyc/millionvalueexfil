@@ -19,7 +19,6 @@ public final class Mve {
         io.github.devxieyc.millionvalueexfil.menu.MveMenus.MENUS.register(modEventBus);
         if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
             modEventBus.addListener(io.github.devxieyc.millionvalueexfil.client.MveClient::registerRenderers);
-            modEventBus.addListener(io.github.devxieyc.millionvalueexfil.client.MveClient::registerMenuScreens);
         }
     }
 }

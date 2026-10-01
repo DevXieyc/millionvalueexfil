@@ -23,4 +23,13 @@ public final class ClientEvents {
     public static void onClientTick(ClientTickEvent.Post event) {
         MveClient.tickPrepareFallback();
     }
+
+    @SubscribeEvent
+    public static void onContainerClose(net.neoforged.neoforge.event.entity.player.PlayerContainerEvent.Close event) {
+        if (event.getContainer()
+                instanceof io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu menu) {
+            io.github.devxieyc.millionvalueexfil.TxManager.removeViewer(
+                    event.getEntity().getUUID(), menu.txnId);
+        }
+    }
 }

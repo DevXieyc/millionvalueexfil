@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -19,13 +20,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
-import net.minecraft.util.Mth;
-import io.github.devxieyc.millionvalueexfil.menu.PvpMenu;
-import io.github.devxieyc.millionvalueexfil.menu.TxPvpContainer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -45,7 +44,6 @@ public final class TxManager {
     private static final Map<UUID, Pending> PENDING = new HashMap<>();
     private static final Map<UUID, Set<UUID>> VIEWERS = new HashMap<>();
     private static final Map<UUID, DeathTx> DUMMY = new HashMap<>();
-    private static final Map<UUID, TxPvpContainer> PVP_CONTAINERS = new HashMap<>();
     private static final String TXN_KEY = "Transaction";
     public static volatile boolean serverStopping = false;
 
@@ -237,7 +235,6 @@ public final class TxManager {
         Mve.LOGGER.info("[MVE] settled: {} item(s) kept for return, {} dropped at {}, xp keep={} lost-orbs={}",
                 txn.reservedCount(), dropped, txn.pos.toShortString(), keep, lost > 0 ? XpMath.deathDrop(lost) : 0);
         broadcastView(player, txn, false);
-        PVP_CONTAINERS.remove(txn.txnId);
         closeAll(player.server, txn.ownerId);
     }
 
@@ -258,7 +255,6 @@ public final class TxManager {
             }
         }
         Mve.LOGGER.info("[MVE] returned {} kept item(s) on respawn", reserved.size());
-        PVP_CONTAINERS.remove(txn.txnId);
         closeAll(player.server, txn.ownerId);
     }
 
@@ -274,14 +270,13 @@ public final class TxManager {
         if (level == null) level = player.serverLevel();
         dropAll(level, txn);
         ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos), Math.min(7 * txn.xpLevelAtDeath, 100));
-        PVP_CONTAINERS.remove(txn.txnId);
         closeAll(player.server, txn.ownerId);
     }
 
     public static void onLogin(ServerPlayer player) {
         DeathTx txn = readTxn(player);
         if (txn != null) {
-            sendView(player, txn, MveNet.ViewPayload.MODE_DEATH, false, player.getScore());
+            sendView(player, txn, false, player.getScore());
         }
     }
 
@@ -325,6 +320,18 @@ public final class TxManager {
         level.addFreshEntity(entity);
     }
 
+    private static void throwTo(ServerLevel level, BlockPos pos, ItemStack stack, Entity toward) {
+        if (level == null) return;
+        Vec3 from = Vec3.atCenterOf(pos);
+        Vec3 target = toward.position().add(0, toward.getBbHeight() * 0.5, 0);
+        Vec3 dir = target.subtract(from);
+        Vec3 motion = dir.lengthSqr() < 0.01 ? new Vec3(0, 0.2, 0) : dir.normalize().scale(0.4);
+        ItemEntity entity = new ItemEntity(level, from.x, from.y, from.z, stack);
+        entity.setPickUpDelay(40);
+        entity.setDeltaMovement(motion.x, Math.abs(motion.y) + 0.1, motion.z);
+        level.addFreshEntity(entity);
+    }
+
     // ---- client-server operations ----
 
     public static void handleSelect(ServerPlayer player, MveNet.SelectPayload payload) {
@@ -344,45 +351,92 @@ public final class TxManager {
         broadcastView(player, txn, false);
     }
 
+    private static Entity findEntity(ServerPlayer viewer, UUID id) {
+        if (viewer.serverLevel() != null) {
+            Entity entity = viewer.serverLevel().getEntity(id);
+            if (entity != null && entity.isAlive()) return entity;
+        }
+        return null;
+    }
+
     public static boolean openPvp(ServerPlayer viewer, ServerPlayer owner) {
         DeathTx txn = readTxn(owner);
         if (txn == null) return false;
-        return openPvpMenu(viewer, txn, owner, () -> writeTxn(owner, txn));
+        openPickupMenu(viewer, txn, owner.getUUID());
+        return true;
     }
 
     public static boolean openPvpDummy(ServerPlayer viewer, Entity corpse) {
         DeathTx txn = DUMMY.get(corpse.getUUID());
         if (txn == null) return false;
-        return openPvpMenu(viewer, txn, null, () -> DUMMY.put(txn.ownerId, txn));
-    }
-
-    private static boolean openPvpMenu(ServerPlayer viewer, DeathTx txn, ServerPlayer owner, Runnable persist) {
-        if (txn.phase != DeathTx.PHASE_ACTIVE || txn.entries.isEmpty()) return false;
-        TxPvpContainer container = PVP_CONTAINERS.computeIfAbsent(txn.txnId,
-                k -> new TxPvpContainer(txn, () -> reconcile(txn, owner, persist)));
-        int rows = Mth.clamp((txn.entries.size() + 8) / 9, 1, 6);
-        VIEWERS.computeIfAbsent(txn.ownerId, k -> new HashSet<>()).add(viewer.getUUID());
-        viewer.openMenu(
-                new net.minecraft.world.SimpleMenuProvider(
-                        (cid, inv, p) -> new PvpMenu(cid, inv, container, rows),
-                        Component.translatable("mve.pvp.title")),
-                buf -> buf.writeVarInt(rows));
+        openPickupMenu(viewer, txn, corpse.getUUID());
         return true;
     }
 
-    private static void reconcile(DeathTx txn, ServerPlayer owner, Runnable persist) {
-        boolean changed = txn.entries.removeIf(entry -> entry.stack.isEmpty());
-        if (!changed) return;
-        txn.version++;
-        persist.run();
+    private static void openPickupMenu(ServerPlayer viewer, DeathTx txn, UUID ownerId) {
+        VIEWERS.computeIfAbsent(ownerId, k -> new HashSet<>()).add(viewer.getUUID());
+        io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu[] holder =
+                new io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu[1];
+        Component title = Component.translatable("mve.pvp.title");
+        viewer.openMenu(new net.minecraft.world.MenuProvider() {
+            @Override
+            public Component getDisplayName() {
+                return title;
+            }
+
+            @Override
+            public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
+                holder[0] = new PvpPickupMenu(id, inv, txn);
+                return holder[0];
+            }
+        }, buf -> {
+            buf.writeUUID(txn.txnId);
+            buf.writeUUID(ownerId);
+            PvpPickupMenu menu = holder[0];
+            for (int i = 0; i < PvpPickupMenu.PICKUP_SLOTS; i++) {
+                java.util.UUID entryId = menu.slotEntry(i);
+                ItemStack stack = menu.pickupStack(i);
+                buf.writeBoolean(entryId != null);
+                if (entryId != null) {
+                    buf.writeUUID(entryId);
+                    ItemStack.OPTIONAL_STREAM_CODEC.encode(buf, stack);
+                }
+            }
+        });
+    }
+
+    public static void takeFromMenu(ServerPlayer viewer, UUID txnId, UUID ownerId, UUID entryId) {
+        ServerPlayer owner = viewer.server.getPlayerList().getPlayer(ownerId);
+        DeathTx txn;
+        if (owner != null) txn = readTxn(owner);
+        else txn = DUMMY.get(ownerId);
+        if (txn == null || txn.phase != DeathTx.PHASE_ACTIVE || !txn.txnId.equals(txnId)) return;
+        TxEntry entry = txn.find(entryId);
+        if (entry == null || entry.state == TxEntry.State.DISABLED) return;
+        txn.remove(entryId);
+        if (owner != null) writeTxn(owner, txn);
+        else DUMMY.put(ownerId, txn);
+        ServerLevel level = viewer.server.getLevel(txn.dimension);
+        BlockPos pos = txn.pos;
+        Entity anchor = owner;
+        if (anchor == null) {
+            anchor = findEntity(viewer, ownerId);
+            if (anchor != null) pos = anchor.blockPosition();
+        }
+        throwTo(level, pos, entry.stack, viewer);
+        Mve.LOGGER.info("[MVE] menu take: {} took {} from {}", viewer.getScoreboardName(), entryId, ownerId);
+        syncPickupMenus(viewer.server, txnId, entryId);
         if (owner != null) broadcastView(owner, txn, false);
     }
 
-    public static void onPvpMenuClosed(ServerPlayer player, TxPvpContainer container) {
-        DeathTx txn = container.txn();
-        container.reconcile();
-        Set<UUID> viewers = VIEWERS.get(txn.ownerId);
-        if (viewers != null) viewers.remove(player.getUUID());
+    private static void syncPickupMenus(MinecraftServer server, UUID txnId, UUID entryId) {
+        for (ServerPlayer online : server.getPlayerList().getPlayers()) {
+            if (online.containerMenu instanceof io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu menu
+                    && menu.txnId.equals(txnId)) {
+                menu.removeEntry(entryId);
+                menu.broadcastChanges();
+            }
+        }
     }
 
     public static void putDummyTxn(DeathTx txn) {
@@ -392,12 +446,16 @@ public final class TxManager {
     public static void expireDummy(UUID ownerId, ServerLevel level) {
         DeathTx txn = DUMMY.remove(ownerId);
         if (txn == null) return;
-        PVP_CONTAINERS.remove(txn.txnId);
         for (TxEntry entry : txn.entries) {
             if (entry.state != TxEntry.State.DISABLED) spawnDrop(level, txn.pos, entry.stack, level.random);
         }
         txn.entries.clear();
         closeAll(level.getServer(), ownerId);
+    }
+
+    public static void removeViewer(UUID viewerId, UUID txnId) {
+        Set<UUID> viewers = VIEWERS.get(txnId);
+        if (viewers != null) viewers.remove(viewerId);
     }
 
     // ---- view sync ----
@@ -407,50 +465,37 @@ public final class TxManager {
         return Math.min(remain, (int) Math.floor(MveConfig.XP_KEEP_RATIO.get() * remain));
     }
 
-    private static MveNet.ViewPayload viewPayload(DeathTx txn, int mode, int score) {
+    private static MveNet.ViewPayload viewPayload(DeathTx txn, int score) {
         List<MveNet.EntryData> list = new ArrayList<>();
         for (TxEntry entry : txn.entries) {
-            if (mode == MveNet.ViewPayload.MODE_PVP && entry.state == TxEntry.State.DISABLED) continue;
             list.add(new MveNet.EntryData(entry.id, entry.slot, entry.state.ordinal(), entry.stack));
         }
-        return new MveNet.ViewPayload(txn.txnId, txn.ownerId, txn.version, mode, Math.max(0, txn.ticksLeft),
+        return new MveNet.ViewPayload(txn.txnId, txn.ownerId, txn.version, Math.max(0, txn.ticksLeft),
                 txn.xpTotal, txn.cost(), keepEstimate(txn), txn.deathMessage, txn.hardcore, score, list);
     }
 
-    private static void sendView(ServerPlayer to, DeathTx txn, int mode, boolean periodic, int score) {
+    private static void sendView(ServerPlayer to, DeathTx txn, boolean periodic, int score) {
         if (!periodic) {
-            Mve.LOGGER.info("[MVE] sending view: mode={} to={}", mode == 0 ? "DEATH" : "PVP", to.getScoreboardName());
+            Mve.LOGGER.info("[MVE] sending view: DEATH to={}", to.getScoreboardName());
         }
-        MveNet.sendToPlayer(to, viewPayload(txn, mode, score));
+        MveNet.sendToPlayer(to, viewPayload(txn, score));
     }
 
     public static void broadcastView(ServerPlayer owner, DeathTx txn, boolean periodic) {
-        broadcastView(owner, txn, periodic, owner);
-    }
-
-    public static void broadcastView(ServerPlayer owner, DeathTx txn, boolean periodic, Entity anchor) {
-        int score = owner != null ? owner.getScore() : 0;
-        ServerPlayer ownerPlayer = owner;
-        if (ownerPlayer != null) {
-            sendView(ownerPlayer, txn, MveNet.ViewPayload.MODE_DEATH, periodic, score);
-        }
-        Set<UUID> viewers = VIEWERS.get(txn.ownerId);
-        if (viewers == null) return;
-        for (UUID id : List.copyOf(viewers)) {
-            ServerPlayer viewer = null;
-            MinecraftServer server = ownerPlayer != null ? ownerPlayer.server : (anchor != null ? anchor.getServer() : null);
-            if (server != null) viewer = server.getPlayerList().getPlayer(id);
-            if (viewer != null) sendView(viewer, txn, MveNet.ViewPayload.MODE_PVP, periodic, score);
-        }
+        if (owner == null) return;
+        sendView(owner, txn, periodic, owner.getScore());
     }
 
     public static void closeAll(MinecraftServer server, UUID ownerId) {
         Set<UUID> viewers = VIEWERS.remove(ownerId);
         if (viewers == null) return;
-        MveNet.ClosePayload payload = new MveNet.ClosePayload(ownerId);
         for (UUID id : viewers) {
             ServerPlayer viewer = server.getPlayerList().getPlayer(id);
-            if (viewer != null) MveNet.sendToPlayer(viewer, payload);
+            if (viewer != null && viewer.containerMenu
+                    instanceof io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu menu
+                    && menu.txnId.equals(ownerId)) {
+                viewer.closeContainer();
+            }
         }
     }
 }

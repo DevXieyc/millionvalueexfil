@@ -36,14 +36,13 @@ public final class MveNet {
                 CODEC.apply(ByteBufCodecs.list(512));
     }
 
-    private record ViewMeta(UUID txnId, UUID ownerId, int version, int mode,
+    private record ViewMeta(UUID txnId, UUID ownerId, int version,
                             Component deathMessage, boolean hardcore) {
         private static final StreamCodec<RegistryFriendlyByteBuf, ViewMeta> CODEC =
-                StreamCodec.<RegistryFriendlyByteBuf, ViewMeta, UUID, UUID, Integer, Integer, Component, Boolean>composite(
+                StreamCodec.<RegistryFriendlyByteBuf, ViewMeta, UUID, UUID, Integer, Component, Boolean>composite(
                         UUIDUtil.STREAM_CODEC, ViewMeta::txnId,
                         UUIDUtil.STREAM_CODEC, ViewMeta::ownerId,
                         ByteBufCodecs.VAR_INT, ViewMeta::version,
-                        ByteBufCodecs.VAR_INT, ViewMeta::mode,
                         ComponentSerialization.TRUSTED_STREAM_CODEC, ViewMeta::deathMessage,
                         ByteBufCodecs.BOOL, ViewMeta::hardcore,
                         ViewMeta::new
@@ -61,21 +60,19 @@ public final class MveNet {
         );
     }
 
-    public record ViewPayload(UUID txnId, UUID ownerId, int version, int mode, int ticksLeft,
+    public record ViewPayload(UUID txnId, UUID ownerId, int version, int ticksLeft,
                               int xpTotal, int xpFee, int xpRemain, Component deathMessage,
                               boolean hardcore, int score, List<EntryData> entries) implements CustomPacketPayload {
-        public static final int MODE_DEATH = 0;
-        public static final int MODE_PVP = 1;
         public static final Type<ViewPayload> TYPE = new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(Mve.MODID, "view"));
         public static final StreamCodec<RegistryFriendlyByteBuf, ViewPayload> CODEC = StreamCodec.composite(
                 ViewMeta.CODEC,
-                v -> new ViewMeta(v.txnId, v.ownerId, v.version, v.mode, v.deathMessage, v.hardcore),
+                v -> new ViewMeta(v.txnId, v.ownerId, v.version, v.deathMessage, v.hardcore),
                 ViewState.CODEC,
                 v -> new ViewState(v.ticksLeft, v.xpTotal, v.xpFee, v.xpRemain, v.score),
                 EntryData.LIST_CODEC,
                 ViewPayload::entries,
-                (meta, state, entries) -> new ViewPayload(meta.txnId(), meta.ownerId(), meta.version(), meta.mode(),
+                (meta, state, entries) -> new ViewPayload(meta.txnId(), meta.ownerId(), meta.version(),
                         state.ticksLeft(), state.xpTotal(), state.xpFee(), state.xpRemain(), meta.deathMessage(),
                         meta.hardcore(), state.score(), entries)
         );
