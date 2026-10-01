@@ -18,12 +18,18 @@ final class GridView {
     private final List<MveNet.EntryData> entries = new ArrayList<>();
     private final List<EntryRect> rects = new ArrayList<>();
     private final IntPredicate stateFilter;
+    private final boolean lightSlots;
     private int cols = 9;
     private int rows = 2;
     private int scroll;
 
     GridView(IntPredicate stateFilter) {
+        this(stateFilter, false);
+    }
+
+    GridView(IntPredicate stateFilter, boolean lightSlots) {
         this.stateFilter = stateFilter;
+        this.lightSlots = lightSlots;
     }
 
     void layout(int cols, int rows) {
@@ -92,7 +98,11 @@ final class GridView {
     }
 
     private void drawSlot(GuiGraphics gfx, MveNet.EntryData entry, int x, int y) {
-        gfx.fill(x, y, x + SLOT, y + SLOT, 0xFF373737);
+        if (lightSlots) {
+            gfx.fill(x, y, x + SLOT, y + SLOT, 0x26FFFFFF);
+        } else {
+            gfx.fill(x, y, x + SLOT, y + SLOT, 0xFF373737);
+        }
         gfx.renderOutline(x, y, SLOT, SLOT, 0xFF8B8B8B);
         if (!entry.stack().isEmpty()) {
             gfx.renderItem(entry.stack(), x + 1, y + 1);

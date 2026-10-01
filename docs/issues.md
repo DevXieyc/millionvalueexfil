@@ -15,6 +15,9 @@
 | IS5 | PVP 拾取页面反馈 | OPEN | 等待下一轮反馈 |
 | IS6 | 经验条填充宽度与网格未对齐 | FIXED | 条宽改为与网格同宽（162），面板 182 对齐快捷栏 |
 | IS7 | 单人世界死亡后选择退出至标题崩溃（NPE: gameMode null） | FIXED | 根因：`disconnect(null)` 使断开过程中的中间 tick 以 pause=false 运行，`gameMode.tick()` 在 `gameMode` 已被置空而 `level` 尚未清空的窗口内 NPE。原版传 `GenericMessageScreen`（isPauseScreen=true → pause=true 跳过守卫）故不崩。修复：完全复刻原版退出流程 `level.disconnect()` → `disconnect(GenericMessageScreen("menu.savingLevel"))` → `setScreen(TitleScreen)` |
+| IS8 | 经验条/面板被"遮蔽"、颜色发糊 | FIXED | 根因：`Screen.render` 开头会再次调用 `renderBackground`，红色渐变在自绘内容之后被二次叠加（按钮在其后绘制所以清晰）。修复：render 不再调 super.render，改为显式调用一次 renderBackground + 手动遍历 renderables |
+| IS9 | 等级数字应与经验条轻微重叠（原版样式） | FIXED | 数字改为条绘制之后绘制，底边压住条顶 2px |
+| IS10 | PVP 拾取页面与设计书示例图不符 | FIXED | 按示例图重做：中性深色底、"拾取物品"居中标题、浅色半透明槽位（白 15% + #8b8b8b 边）、"物品栏"标签 + 视角者物品栏只读展示、常驻滚动条 |
 
 ## 与设计书的有意偏离（备案）
 

@@ -103,6 +103,7 @@ public final class MveDeathScreen extends Screen {
 
     @Override
     public void render(GuiGraphics gfx, int mouseX, int mouseY, float partialTick) {
+        renderBackground(gfx, mouseX, mouseY, partialTick);
         int cs = this.height >= 340 && this.width >= 400 ? 2 : 1;
         this.contentScale = cs;
 
@@ -144,8 +145,8 @@ public final class MveDeathScreen extends Screen {
         String capacity = "(" + keptCount + "/" + maxKeep + ")";
         gfx.drawString(this.font, Component.translatable("mve.death.kept"), x0 + 2, y0, 0xFFFFFFFF);
         gfx.drawString(this.font, Component.literal(capacity), x0 + PANEL_WIDTH - this.font.width(capacity) - 2, y0, 0xFFFFFFFF);
-        drawLevel(gfx, x0 + 2, y0 + 11, predictedPoints);
         xpBar(gfx, x0 + 2, y0 + 20, XpMath.levelProgress(predictedPoints));
+        drawLevel(gfx, x0 + 2, y0 + 20, predictedPoints);
         this.keptGridY = y0 + 27;
         MveNet.EntryData keptHover = kept.render(gfx, this.minecraft, x0 + 2, this.keptGridY, mx, my);
 
@@ -158,8 +159,8 @@ public final class MveDeathScreen extends Screen {
             int timerColor = this.ticks <= FADE_TICKS ? 0xFFFF5555 : this.ticks <= YELLOW_TICKS ? 0xFFFFFF55 : 0xFFFFFFFF;
             gfx.drawString(this.font, Component.translatable("mve.death.select"), x0 + 2, availY, 0xFFFFFFFF);
             gfx.drawString(this.font, timerComp, x0 + PANEL_WIDTH - this.font.width(timerComp) - 2, availY, timerColor);
-            drawLevel(gfx, x0 + 2, availY + 11, view.xpTotal());
             xpBar(gfx, x0 + 2, availY + 20, XpMath.levelProgress(view.xpTotal()));
+            drawLevel(gfx, x0 + 2, availY + 20, view.xpTotal());
             this.availGridY = availY + 27;
             availHover = available.render(gfx, this.minecraft, x0 + 2, this.availGridY, mx, my);
             if (this.ticks < FADE_TICKS) {
@@ -172,7 +173,9 @@ public final class MveDeathScreen extends Screen {
 
         gfx.pose().popPose();
 
-        super.render(gfx, mouseX, mouseY, partialTick);
+        for (net.minecraft.client.gui.components.Renderable renderable : this.renderables) {
+            renderable.render(gfx, mouseX, mouseY, partialTick);
+        }
 
         if (this.tooltipEntry != null && !this.tooltipEntry.stack().isEmpty()) {
             gfx.renderTooltip(this.font, this.tooltipEntry.stack(), mouseX, mouseY);
@@ -183,11 +186,12 @@ public final class MveDeathScreen extends Screen {
         return this.height / scale;
     }
 
-    private void drawLevel(GuiGraphics gfx, int x, int y, int points) {
+    private void drawLevel(GuiGraphics gfx, int x, int barY, int points) {
         String text = String.valueOf(XpMath.levelForPoints(points));
         int tx = x + (BAR_WIDTH - this.font.width(text)) / 2;
-        gfx.drawString(this.font, text, tx + 1, y + 1, 0, false);
-        gfx.drawString(this.font, text, tx, y, 0x80FF20, false);
+        int ty = barY - 7;
+        gfx.drawString(this.font, text, tx + 1, ty + 1, 0, false);
+        gfx.drawString(this.font, text, tx, ty, 0x80FF20, false);
     }
 
     private void drawPanel(GuiGraphics gfx, int x, int y, int w, int h) {
