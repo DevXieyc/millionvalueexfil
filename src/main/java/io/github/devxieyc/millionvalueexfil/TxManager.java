@@ -297,16 +297,46 @@ public final class TxManager {
 
     private static void dropEntries(ServerLevel level, BlockPos pos, DeathTx txn, EntryFilter filter) {
         if (level == null) return;
+        BlockPos dropPos = safeDropPos(level, pos);
         RandomSource random = level.random;
         List<TxEntry> dropped = new ArrayList<>();
         for (TxEntry entry : txn.entries) {
             if (filter.test(entry)) {
-                spawnDrop(level, pos, entry.stack, random);
+                spawnDrop(level, dropPos, entry.stack, random);
                 dropped.add(entry);
             }
         }
         txn.entries.removeAll(dropped);
         txn.version++;
+    }
+
+    private static boolean inBurningBlock(ServerLevel level, BlockPos pos) {
+        return level.getFluidState(pos).is(net.minecraft.tags.FluidTags.LAVA)
+                || level.getBlockState(pos).is(net.minecraft.tags.BlockTags.FIRE);
+    }
+
+    private static BlockPos safeDropPos(ServerLevel level, BlockPos pos) {
+        if (!inBurningBlock(level, pos)) return pos;
+        for (int r = 1; r <= 8; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    for (int dy = 0; dy <= 2; dy++) {
+                        BlockPos p = pos.offset(dx, dy, dz);
+                        if (level.getBlockState(p).isAir()
+                                && !level.getBlockState(p.below()).isAir()
+                                && !inBurningBlock(level, p)
+                                && !inBurningBlock(level, p.below())) {
+                            Mve.LOGGER.info("[MVE] drop position unsafe (lava/fire), relocated {} -> {}",
+                                    pos.toShortString(), p.toShortString());
+                            return p;
+                        }
+                    }
+                }
+            }
+        }
+        Mve.LOGGER.info("[MVE] drop position unsafe (lava/fire), no safe spot within 8 blocks, dropping anyway");
+        return pos;
     }
 
     private static void spawnDrop(ServerLevel level, BlockPos pos, ItemStack stack, RandomSource random) {
@@ -339,14 +369,18 @@ public final class TxManager {
     public static void handleSelect(ServerPlayer player, MveNet.SelectPayload payload) {
         DeathTx txn = readTxn(player);
         if (txn == null || txn.phase != DeathTx.PHASE_ACTIVE
-                || !txn.txnId.equals(payload.txnId()) || txn.version != payload.version()) return;
+                || !txn.txnId.equals(payload.txnId()) || txn.version < payload.version()) return;
         if (payload.reserve()) {
-            if (!txn.toggle(payload.entryId())) return;
+            TxEntry entry = txn.find(payload.entryId());
+            if (entry == null || entry.state == TxEntry.State.DISABLED) return;
+            if (entry.state == TxEntry.State.DEFAULT && !txn.toggle(payload.entryId())) return;
         } else {
             TxEntry entry = txn.find(payload.entryId());
-            if (entry == null || entry.state != TxEntry.State.RESERVED) return;
-            entry.state = TxEntry.State.DEFAULT;
-            txn.version++;
+            if (entry == null) return;
+            if (entry.state == TxEntry.State.RESERVED) {
+                entry.state = TxEntry.State.DEFAULT;
+                txn.version++;
+            }
         }
         player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.4F, 1.6F);
         writeTxn(player, txn);

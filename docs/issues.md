@@ -25,6 +25,8 @@
 | IS20 | 最后 10 秒待选区警示效果方向错误：预期"半透明脉动"（面板周期性变透），实际是深色遮罩 alpha 递增 + 正弦振荡 = "闪烁变深" | OPEN（随 IS14-IS17 批量实施） | 修法：去掉黑色遮罩叠加，改为调制面板背景 alpha（0x90 ↔ 0x30 脉动），红色警示保留在倒计时文字（IS3 已实现） |
 | IS21 | 打开实体 PVP 拾取菜单时客户端断线（打开带有高级数据的屏幕失败: No value with id 15012） | FIXED | 根因：菜单附加数据读写顺序不对称——服务端写 [Boolean][UUID][ItemStack(OPTIONAL_CODEC)]，客户端却先 decode 物品再读 UUID，物品编解码器把 UUID 字节当注册表 id 解析（15012 即 UUID 前几个字节）。修复：客户端读取顺序对齐为 UUID 先于 decode |
 | IS22 | PVP 拾取页面上半区采用默认容器槽位外观（空槽显示、无滚动条），与设计图"物品"语义不符 | FIXED | 上半区改为自绘：不再 blit generic_54 上段贴图，改画死亡选择页风格面板（深色半透明底 + 555555 边）+ #373737 槽位格（仅占用格渲染，空槽经 `Slot.isActive()=!hasItem()` 隐藏，同时门控悬停/点击）+ 右侧常驻滚动条（超过 6 行时显示滑块）；拾取容器本身已顺序压实故无空洞。下半区保留原版贴图与真实槽位（整理模组兼容不变） |
+| IS23 | 快速连点选择时部分物品"没选上" | FIXED | 根因：`handleSelect` 对版本号做严格相等校验，服务端应用上一次点击后版本 +1，客户端在收到新 view 前的后续点击携带旧版本被静默丢弃（日志：一次死亡内 17 次 view 重发、17 件只保住 16 件）。修复：版本改为"仅拒绝客户端超前"（`txn.version < payload.version()`），过期版本按幂等意图处理——目标已是期望状态则视为成功空操作，真实状态转移仍走 toggle 预算校验，双击误撤销由"已 RESERVED 则跳过"天然防住 |
+| IS24 | 死亡点在熔岩/火中时，结算放弃的物品在原位生成即被烧毁（表现为"放弃的物品没有掉落"） | FIXED | 结算掉落前做安全点搜索：`safeDropPos` 以死亡点为心螺旋搜索半径 8、y+0..2 内第一个"下方为实体方块的非燃烧空气格"，找到即迁移掉落点并记日志；8 格内无安全点则按原位掉落（等同原版语义）。死亡点非危险时行为不变 |
 | IS6 | 经验条填充宽度与网格未对齐 | FIXED | 条宽改为与网格同宽（162），面板 182 对齐快捷栏 |
 | IS7 | 单人世界死亡后选择退出至标题崩溃（NPE: gameMode null） | FIXED | 根因：`disconnect(null)` 使断开过程中的中间 tick 以 pause=false 运行，`gameMode.tick()` 在 `gameMode` 已被置空而 `level` 尚未清空的窗口内 NPE。原版传 `GenericMessageScreen`（isPauseScreen=true → pause=true 跳过守卫）故不崩。修复：完全复刻原版退出流程 `level.disconnect()` → `disconnect(GenericMessageScreen("menu.savingLevel"))` → `setScreen(TitleScreen)` |
 | IS8 | 经验条/面板被"遮蔽"、颜色发糊 | FIXED | 根因：`Screen.render` 开头会再次调用 `renderBackground`，红色渐变在自绘内容之后被二次叠加（按钮在其后绘制所以清晰）。修复：render 不再调 super.render，改为显式调用一次 renderBackground + 手动遍历 renderables |
