@@ -47,8 +47,8 @@ public class PvpPickupMenu extends AbstractContainerMenu {
         this.ownerId = buf.readUUID();
         for (int i = 0; i < PICKUP_SLOTS; i++) {
             if (buf.readBoolean()) {
-                this.pickup.setItem(i, ItemStack.OPTIONAL_STREAM_CODEC.decode(buf));
                 this.slotEntries.set(i, buf.readUUID());
+                this.pickup.setItem(i, ItemStack.OPTIONAL_STREAM_CODEC.decode(buf));
             }
         }
         addSlots(playerInv);
