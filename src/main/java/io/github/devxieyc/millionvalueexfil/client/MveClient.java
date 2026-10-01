@@ -74,4 +74,8 @@ public final class MveClient {
                 io.github.devxieyc.millionvalueexfil.entity.MveEntities.DEBUG_CORPSE.get(),
                 DebugCorpseRenderer::new);
     }
+
+    public static void registerMenuScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
+        event.register(io.github.devxieyc.millionvalueexfil.menu.MveMenus.PVP_PICKUP.get(), PvpPickupScreen::new);
+    }
 }

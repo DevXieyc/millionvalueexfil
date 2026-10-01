@@ -71,7 +71,7 @@ public final class MveDebug {
         corpse.setPos(player.position());
         corpse.setYRot(player.getYRot());
         corpse.setLifeTicks(seconds * 20);
-        corpse.setCustomName(Component.literal("Corpse (" + seconds + "s)"));
+        corpse.setOwnerName(player.getScoreboardName());
         player.serverLevel().addFreshEntity(corpse);
 
         java.util.List<io.github.devxieyc.millionvalueexfil.TxEntry> entries = new java.util.ArrayList<>();
