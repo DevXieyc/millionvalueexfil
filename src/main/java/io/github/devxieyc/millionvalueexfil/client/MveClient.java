@@ -56,9 +56,22 @@ public final class MveClient {
         }
     }
 
+    public static void handlePvpOpen(MveNet.PvpOpenPayload payload) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen instanceof PvpCompatScreen screen && screen.matches(payload.txnId(), payload.ownerId())) {
+            screen.update(payload);
+        } else {
+            mc.setScreen(new PvpCompatScreen(payload));
+        }
+    }
+
     public static void handleClose(MveNet.ClosePayload payload) {
         Minecraft mc = Minecraft.getInstance();
         prepareStamp = 0;
+        if (mc.screen instanceof PvpCompatScreen compat && compat.matchesOwner(payload.ownerId())) {
+            mc.setScreen(null);
+            return;
+        }
         if (mc.screen instanceof MvePendingScreen) {
             if (mc.player != null && mc.player.isDeadOrDying()) {
                 boolean hardcore = mc.level != null && mc.level.getLevelData().isHardcore();

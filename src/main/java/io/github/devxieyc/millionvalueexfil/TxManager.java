@@ -43,6 +43,7 @@ public final class TxManager {
 
     private static final Map<UUID, Pending> PENDING = new HashMap<>();
     private static final Map<UUID, Set<UUID>> VIEWERS = new HashMap<>();
+    private static final Map<UUID, Set<UUID>> COMPAT_VIEWERS = new HashMap<>();
     private static final Map<UUID, DeathTx> DUMMY = new HashMap<>();
     private static final String TXN_KEY = "Transaction";
     public static volatile boolean serverStopping = false;
@@ -202,7 +203,10 @@ public final class TxManager {
                 settle(player, txn);
             } else {
                 writeTxn(player, txn);
-                if (now % 20 == 0) broadcastView(player, txn, true);
+                if (now % 20 == 0) {
+                    broadcastView(player, txn, true);
+                    broadcastCompat(player.server, txn.ownerId, txn);
+                }
             }
         }
         if (!PENDING.isEmpty()) {
@@ -264,7 +268,9 @@ public final class TxManager {
         UUID id = player.getUUID();
         PENDING.remove(id);
         VIEWERS.remove(id);
+        COMPAT_VIEWERS.remove(id);
         for (Set<UUID> viewers : VIEWERS.values()) viewers.remove(id);
+        for (Set<UUID> compat : COMPAT_VIEWERS.values()) compat.remove(id);
         if (serverStopping) return;
         DeathTx txn = takeTxn(player);
         if (txn == null) return;
@@ -381,6 +387,11 @@ public final class TxManager {
 
     private static void openPickupMenu(ServerPlayer viewer, DeathTx txn, UUID ownerId) {
         VIEWERS.computeIfAbsent(ownerId, k -> new HashSet<>()).add(viewer.getUUID());
+        if (!io.github.devxieyc.millionvalueexfil.MveConfig.PVP_SHOW_OWN_INVENTORY.get()) {
+            COMPAT_VIEWERS.computeIfAbsent(ownerId, k -> new HashSet<>()).add(viewer.getUUID());
+            MveNet.sendToPlayer(viewer, pvpOpen(txn));
+            return;
+        }
         io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu[] holder =
                 new io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu[1];
         Component title = Component.translatable("mve.pvp.title");
@@ -411,6 +422,32 @@ public final class TxManager {
         });
     }
 
+    public static void handleTake(ServerPlayer viewer, MveNet.TakePayload payload) {
+        takeFromMenu(viewer, payload.txnId(), payload.ownerId(), payload.entryId());
+    }
+
+    public static void handleViewerClose(ServerPlayer viewer, MveNet.LeavePayload payload) {
+        removeViewer(viewer.getUUID(), payload.ownerId());
+    }
+
+    public static MveNet.PvpOpenPayload pvpOpen(DeathTx txn) {
+        List<MveNet.EntryData> list = new ArrayList<>();
+        for (TxEntry entry : txn.entries) {
+            list.add(new MveNet.EntryData(entry.id, entry.slot, entry.state.ordinal(), entry.stack));
+        }
+        return new MveNet.PvpOpenPayload(txn.txnId, txn.ownerId, Math.max(0, txn.ticksLeft), list);
+    }
+
+    private static void broadcastCompat(MinecraftServer server, UUID ownerId, DeathTx txn) {
+        Set<UUID> compat = COMPAT_VIEWERS.get(ownerId);
+        if (compat == null || compat.isEmpty()) return;
+        MveNet.PvpOpenPayload payload = pvpOpen(txn);
+        for (UUID id : compat) {
+            ServerPlayer viewer = server.getPlayerList().getPlayer(id);
+            if (viewer != null) MveNet.sendToPlayer(viewer, payload);
+        }
+    }
+
     public static void takeFromMenu(ServerPlayer viewer, UUID txnId, UUID ownerId, UUID entryId) {
         ServerPlayer owner = viewer.server.getPlayerList().getPlayer(ownerId);
         DeathTx txn;
@@ -432,6 +469,7 @@ public final class TxManager {
         throwTo(level, pos, entry.stack, viewer);
         Mve.LOGGER.info("[MVE] menu take: {} took {} from {}", viewer.getScoreboardName(), entryId, ownerId);
         syncPickupMenus(viewer.server, txnId, entryId);
+        broadcastCompat(viewer.server, ownerId, txn);
         if (owner != null) broadcastView(owner, txn, false);
     }
 
@@ -462,6 +500,8 @@ public final class TxManager {
     public static void removeViewer(UUID viewerId, UUID txnId) {
         Set<UUID> viewers = VIEWERS.get(txnId);
         if (viewers != null) viewers.remove(viewerId);
+        Set<UUID> compat = COMPAT_VIEWERS.get(txnId);
+        if (compat != null) compat.remove(viewerId);
     }
 
     // ---- view sync ----
@@ -494,13 +534,17 @@ public final class TxManager {
 
     public static void closeAll(MinecraftServer server, UUID ownerId) {
         Set<UUID> viewers = VIEWERS.remove(ownerId);
+        COMPAT_VIEWERS.remove(ownerId);
         if (viewers == null) return;
         for (UUID id : viewers) {
             ServerPlayer viewer = server.getPlayerList().getPlayer(id);
-            if (viewer != null && viewer.containerMenu
+            if (viewer == null) continue;
+            if (viewer.containerMenu
                     instanceof io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu menu
-                    && menu.txnId.equals(ownerId)) {
+                    && menu.ownerId.equals(ownerId)) {
                 viewer.closeContainer();
+            } else {
+                MveNet.sendToPlayer(viewer, new MveNet.ClosePayload(ownerId));
             }
         }
     }

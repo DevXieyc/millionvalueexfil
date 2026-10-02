@@ -125,6 +125,54 @@ public final class MveNet {
         }
     }
 
+    public record PvpOpenPayload(UUID txnId, UUID ownerId, int ticksLeft,
+                                 List<EntryData> entries) implements CustomPacketPayload {
+        public static final Type<PvpOpenPayload> TYPE = new CustomPacketPayload.Type<>(
+                ResourceLocation.fromNamespaceAndPath(Mve.MODID, "pvp_open"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, PvpOpenPayload> CODEC = StreamCodec.composite(
+                UUIDUtil.STREAM_CODEC, PvpOpenPayload::txnId,
+                UUIDUtil.STREAM_CODEC, PvpOpenPayload::ownerId,
+                ByteBufCodecs.VAR_INT, PvpOpenPayload::ticksLeft,
+                EntryData.LIST_CODEC, PvpOpenPayload::entries,
+                PvpOpenPayload::new
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record TakePayload(UUID txnId, UUID ownerId, UUID entryId) implements CustomPacketPayload {
+        public static final Type<TakePayload> TYPE = new CustomPacketPayload.Type<>(
+                ResourceLocation.fromNamespaceAndPath(Mve.MODID, "take"));
+        public static final StreamCodec<ByteBuf, TakePayload> CODEC = StreamCodec.composite(
+                UUIDUtil.STREAM_CODEC, TakePayload::txnId,
+                UUIDUtil.STREAM_CODEC, TakePayload::ownerId,
+                UUIDUtil.STREAM_CODEC, TakePayload::entryId,
+                TakePayload::new
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record LeavePayload(UUID ownerId) implements CustomPacketPayload {
+        public static final Type<LeavePayload> TYPE = new CustomPacketPayload.Type<>(
+                ResourceLocation.fromNamespaceAndPath(Mve.MODID, "leave_view"));
+        public static final StreamCodec<ByteBuf, LeavePayload> CODEC = StreamCodec.composite(
+                UUIDUtil.STREAM_CODEC, LeavePayload::ownerId,
+                LeavePayload::new
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
         if (FMLEnvironment.dist == Dist.CLIENT) {
@@ -134,9 +182,15 @@ public final class MveNet {
                     (payload, context) -> io.github.devxieyc.millionvalueexfil.client.MveClient.handlePrepare());
             registrar.playToClient(ClosePayload.TYPE, ClosePayload.CODEC,
                     (payload, context) -> io.github.devxieyc.millionvalueexfil.client.MveClient.handleClose(payload));
+            registrar.playToClient(PvpOpenPayload.TYPE, PvpOpenPayload.CODEC,
+                    (payload, context) -> io.github.devxieyc.millionvalueexfil.client.MveClient.handlePvpOpen(payload));
         }
         registrar.playToServer(SelectPayload.TYPE, SelectPayload.CODEC,
                 (payload, context) -> TxManager.handleSelect((ServerPlayer) context.player(), payload));
+        registrar.playToServer(TakePayload.TYPE, TakePayload.CODEC,
+                (payload, context) -> TxManager.handleTake((ServerPlayer) context.player(), payload));
+        registrar.playToServer(LeavePayload.TYPE, LeavePayload.CODEC,
+                (payload, context) -> TxManager.handleViewerClose((ServerPlayer) context.player(), payload));
     }
 
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {

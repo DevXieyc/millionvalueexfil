@@ -9,6 +9,7 @@
   "mve.death.to_title": "标题画面",
   "mve.death.back": "返回",
   "mve.death.timer": "剩余%s",
+  "mve.pvp.take_hint": "点击以掉落该物品",
   "mve.pvp.title": "拾取物品",
   "mve.pvp.inventory": "物品栏"
 }

@@ -24,7 +24,6 @@ public class PvpPickupMenu extends AbstractContainerMenu {
 
     private final net.minecraft.world.SimpleContainer pickup = new net.minecraft.world.SimpleContainer(PICKUP_SLOTS);
     private final List<UUID> slotEntries = new ArrayList<>(Collections.nCopies(PICKUP_SLOTS, (UUID) null));
-    private final boolean showOwnInv = io.github.devxieyc.millionvalueexfil.MveConfig.PVP_SHOW_OWN_INVENTORY.get();
     public final UUID txnId;
     public final UUID ownerId;
 
@@ -69,30 +68,15 @@ public class PvpPickupMenu extends AbstractContainerMenu {
                 public boolean mayPickup(Player player) {
                     return false;
                 }
-
-                @Override
-                public boolean isActive() {
-                    return !this.getItem().isEmpty();
-                }
             });
         }
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInv, 9 + row * 9 + col, 8 + col * 18, 139 + row * 18) {
-                    @Override
-                    public boolean isActive() {
-                        return showOwnInv;
-                    }
-                });
+                addSlot(new Slot(playerInv, 9 + row * 9 + col, 8 + col * 18, 139 + row * 18));
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInv, col, 8 + col * 18, 197) {
-                @Override
-                public boolean isActive() {
-                    return showOwnInv;
-                }
-            });
+            addSlot(new Slot(playerInv, col, 8 + col * 18, 197));
         }
     }
 
@@ -118,10 +102,6 @@ public class PvpPickupMenu extends AbstractContainerMenu {
 
     public ItemStack pickupStack(int slot) {
         return this.pickup.getItem(slot);
-    }
-
-    public boolean isPickupSlot(Slot slot) {
-        return slot.container == this.pickup;
     }
 
     public void removeEntry(UUID entryId) {

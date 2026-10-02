@@ -29,7 +29,7 @@ public final class ClientEvents {
         if (event.getContainer()
                 instanceof io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu menu) {
             io.github.devxieyc.millionvalueexfil.TxManager.removeViewer(
-                    event.getEntity().getUUID(), menu.txnId);
+                    event.getEntity().getUUID(), menu.ownerId);
         }
     }
 }
