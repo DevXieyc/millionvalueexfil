@@ -11,6 +11,7 @@ public final class MveConfig {
     public static final ModConfigSpec.DoubleValue XP_KEEP_RATIO;
     public static final ModConfigSpec.BooleanValue ALLOW_HARDCORE;
     public static final ModConfigSpec.BooleanValue ALLOW_GENERIC_KILL;
+    public static final ModConfigSpec.BooleanValue PVP_SHOW_OWN_INVENTORY;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -22,6 +23,9 @@ public final class MveConfig {
                 .define("allowHardcore", false);
         ALLOW_GENERIC_KILL = b.comment("Allow MVE to trigger on minecraft:generic_kill damage.")
                 .define("allowGenericKill", false);
+        PVP_SHOW_OWN_INVENTORY = b.comment("Show the viewer's own inventory section in the PVP pickup screen. "
+                + "Disable for a pickup-only compat layout.")
+                .define("pvpShowOwnInventory", true);
         SPEC = b.build();
     }
 

@@ -24,6 +24,7 @@ public class PvpPickupMenu extends AbstractContainerMenu {
 
     private final net.minecraft.world.SimpleContainer pickup = new net.minecraft.world.SimpleContainer(PICKUP_SLOTS);
     private final List<UUID> slotEntries = new ArrayList<>(Collections.nCopies(PICKUP_SLOTS, (UUID) null));
+    private final boolean showOwnInv = io.github.devxieyc.millionvalueexfil.MveConfig.PVP_SHOW_OWN_INVENTORY.get();
     public final UUID txnId;
     public final UUID ownerId;
 
@@ -77,11 +78,21 @@ public class PvpPickupMenu extends AbstractContainerMenu {
         }
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInv, 9 + row * 9 + col, 8 + col * 18, 139 + row * 18));
+                addSlot(new Slot(playerInv, 9 + row * 9 + col, 8 + col * 18, 139 + row * 18) {
+                    @Override
+                    public boolean isActive() {
+                        return showOwnInv;
+                    }
+                });
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInv, col, 8 + col * 18, 197));
+            addSlot(new Slot(playerInv, col, 8 + col * 18, 197) {
+                @Override
+                public boolean isActive() {
+                    return showOwnInv;
+                }
+            });
         }
     }
 
