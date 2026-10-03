@@ -82,6 +82,11 @@ public class PvpPickupMenu extends AbstractContainerMenu {
                 public boolean mayPickup(Player player) {
                     return false;
                 }
+
+                @Override
+                public boolean isActive() {
+                    return !this.getItem().isEmpty();
+                }
             });
         }
         for (int row = 0; row < 3; row++) {

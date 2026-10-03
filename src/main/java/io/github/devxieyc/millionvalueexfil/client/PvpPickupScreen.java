@@ -34,6 +34,20 @@ public final class PvpPickupScreen extends AbstractContainerScreen<PvpPickupMenu
         gfx.renderOutline(wellX - 1, wellY - 1, wellW + 2, wellH + 2, 0xFF000000);
         gfx.renderOutline(wellX, wellY, wellW, wellH, 0xFF2A2A2A);
 
+        int itemCount = 0;
+        for (int i = 0; i < PvpPickupMenu.PICKUP_SLOTS; i++) {
+            if (!this.menu.pickupStack(i).isEmpty()) itemCount++;
+        }
+        int trackX = this.leftPos + this.imageWidth - 5;
+        int trackY = this.topPos + 18;
+        int trackH = wellH - 2;
+        gfx.fill(trackX, trackY, trackX + 4, trackY + trackH, 0xFF1A1A1A);
+        int totalRows = (itemCount + 8) / 9;
+        if (totalRows > PvpPickupMenu.PICKUP_ROWS) {
+            int thumbH = Math.max(8, trackH * PvpPickupMenu.PICKUP_ROWS / totalRows);
+            gfx.fill(trackX, trackY, trackX + 4, trackY + thumbH, 0xFF8B8B8B);
+        }
+
         Component timerComp = Component.translatable("mve.death.timer", timerText());
         int timerColor = this.menu.remainingTicks <= FADE_TICKS ? 0xFFFF5555
                 : this.menu.remainingTicks <= YELLOW_TICKS ? 0xFFFFFF55 : 0xFFFFFFFF;
