@@ -387,40 +387,8 @@ public final class TxManager {
 
     private static void openPickupMenu(ServerPlayer viewer, DeathTx txn, UUID ownerId) {
         VIEWERS.computeIfAbsent(ownerId, k -> new HashSet<>()).add(viewer.getUUID());
-        if (!io.github.devxieyc.millionvalueexfil.MveConfig.PVP_SHOW_OWN_INVENTORY.get()) {
-            COMPAT_VIEWERS.computeIfAbsent(ownerId, k -> new HashSet<>()).add(viewer.getUUID());
-            MveNet.sendToPlayer(viewer, pvpOpen(txn));
-            return;
-        }
-        io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu[] holder =
-                new io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu[1];
-        Component title = Component.translatable("mve.pvp.title");
-        viewer.openMenu(new net.minecraft.world.MenuProvider() {
-            @Override
-            public Component getDisplayName() {
-                return title;
-            }
-
-            @Override
-            public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
-                holder[0] = new PvpPickupMenu(id, inv, txn);
-                return holder[0];
-            }
-        }, buf -> {
-            buf.writeUUID(txn.txnId);
-            buf.writeUUID(ownerId);
-            PvpPickupMenu menu = holder[0];
-            for (int i = 0; i < PvpPickupMenu.PICKUP_SLOTS; i++) {
-                java.util.UUID entryId = menu.slotEntry(i);
-                ItemStack stack = menu.pickupStack(i);
-                buf.writeBoolean(entryId != null);
-                if (entryId != null) {
-                    buf.writeUUID(entryId);
-                    ItemStack.OPTIONAL_STREAM_CODEC.encode(buf, stack);
-                }
-            }
-            buf.writeVarInt(Math.max(0, txn.ticksLeft));
-        });
+        COMPAT_VIEWERS.computeIfAbsent(ownerId, k -> new HashSet<>()).add(viewer.getUUID());
+        MveNet.sendToPlayer(viewer, pvpOpen(txn));
     }
 
     public static void handleTake(ServerPlayer viewer, MveNet.TakePayload payload) {

@@ -91,18 +91,6 @@ public final class MveDebug {
                         .then(Commands.argument("txnId", net.minecraft.commands.arguments.UuidArgument.uuid())
                                 .executes(context -> redrop(context.getSource(),
                                         net.minecraft.commands.arguments.UuidArgument.getUuid(context, "txnId")))))
-                .then(Commands.literal("pvp")
-                        .then(Commands.argument("showInventory", com.mojang.brigadier.arguments.BoolArgumentType.bool())
-                                .executes(context -> {
-                                    boolean show = com.mojang.brigadier.arguments.BoolArgumentType
-                                            .getBool(context, "showInventory");
-                                    io.github.devxieyc.millionvalueexfil.MveConfig.PVP_SHOW_OWN_INVENTORY.set(show);
-                                    context.getSource().sendSuccess(() -> Component.literal(
-                                            "[MVE-DEBUG] pvpShowOwnInventory=" + show + " ("
-                                                    + (show ? "container mode" : "items-only mode")
-                                                    + "), applies to next open"), false);
-                                    return 1;
-                                })))
         );
     }
 
