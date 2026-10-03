@@ -26,18 +26,14 @@ public class PvpPickupMenu extends AbstractContainerMenu {
     private final List<UUID> slotEntries = new ArrayList<>(Collections.nCopies(PICKUP_SLOTS, (UUID) null));
     public final UUID txnId;
     public final UUID ownerId;
+    public int remainingTicks;
 
     public PvpPickupMenu(int id, Inventory playerInv, DeathTx txn) {
         super(MveMenus.PVP_PICKUP.get(), id);
         this.txnId = txn.txnId;
         this.ownerId = txn.ownerId;
-        int slot = 0;
-        for (TxEntry entry : txn.entries) {
-            if (entry.state == TxEntry.State.DISABLED || slot >= PICKUP_SLOTS) continue;
-            this.pickup.setItem(slot, entry.stack);
-            this.slotEntries.set(slot, entry.id);
-            slot++;
-        }
+        this.remainingTicks = Math.max(0, txn.ticksLeft);
+        fillFrom(txn);
         addSlots(playerInv);
     }
 
@@ -51,7 +47,25 @@ public class PvpPickupMenu extends AbstractContainerMenu {
                 this.pickup.setItem(i, ItemStack.OPTIONAL_STREAM_CODEC.decode(buf));
             }
         }
+        this.remainingTicks = buf.readVarInt();
         addSlots(playerInv);
+    }
+
+    public void refill(DeathTx txn) {
+        this.remainingTicks = Math.max(0, txn.ticksLeft);
+        fillFrom(txn);
+    }
+
+    private void fillFrom(DeathTx txn) {
+        this.pickup.clearContent();
+        java.util.Collections.fill(this.slotEntries, null);
+        int slot = 0;
+        for (TxEntry entry : txn.entries) {
+            if (entry.state == TxEntry.State.DISABLED || slot >= PICKUP_SLOTS) continue;
+            this.pickup.setItem(slot, entry.stack);
+            this.slotEntries.set(slot, entry.id);
+            slot++;
+        }
     }
 
     private void addSlots(Inventory playerInv) {
@@ -112,7 +126,6 @@ public class PvpPickupMenu extends AbstractContainerMenu {
             }
         }
     }
-
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
         return ItemStack.EMPTY;

@@ -419,6 +419,7 @@ public final class TxManager {
                     ItemStack.OPTIONAL_STREAM_CODEC.encode(buf, stack);
                 }
             }
+            buf.writeVarInt(Math.max(0, txn.ticksLeft));
         });
     }
 
@@ -468,16 +469,16 @@ public final class TxManager {
         }
         throwTo(level, pos, entry.stack, viewer);
         Mve.LOGGER.info("[MVE] menu take: {} took {} from {}", viewer.getScoreboardName(), entryId, ownerId);
-        syncPickupMenus(viewer.server, txnId, entryId);
+        syncPickupMenus(viewer.server, txn, entryId);
         broadcastCompat(viewer.server, ownerId, txn);
         if (owner != null) broadcastView(owner, txn, false);
     }
 
-    private static void syncPickupMenus(MinecraftServer server, UUID txnId, UUID entryId) {
+    private static void syncPickupMenus(MinecraftServer server, DeathTx txn, UUID entryId) {
         for (ServerPlayer online : server.getPlayerList().getPlayers()) {
             if (online.containerMenu instanceof io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu menu
-                    && menu.txnId.equals(txnId)) {
-                menu.removeEntry(entryId);
+                    && menu.txnId.equals(txn.txnId)) {
+                menu.refill(txn);
                 menu.broadcastChanges();
             }
         }

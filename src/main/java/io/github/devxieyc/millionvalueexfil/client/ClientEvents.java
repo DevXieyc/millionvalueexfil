@@ -22,6 +22,8 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         MveClient.tickPrepareFallback();
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.screen instanceof PvpPickupScreen screen) screen.tickTimer();
     }
 
     @SubscribeEvent

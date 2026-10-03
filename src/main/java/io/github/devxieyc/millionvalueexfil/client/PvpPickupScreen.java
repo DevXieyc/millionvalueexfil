@@ -1,6 +1,7 @@
-// Million Value Exfil - PVP pickup screen (vanilla double-chest style)
+// Million Value Exfil - PVP pickup screen (vanilla double-chest style, recessed item well)
 package io.github.devxieyc.millionvalueexfil.client;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -11,6 +12,8 @@ import io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu;
 public final class PvpPickupScreen extends AbstractContainerScreen<PvpPickupMenu> {
     private static final ResourceLocation BG =
             ResourceLocation.withDefaultNamespace("textures/gui/container/generic_54.png");
+    private static final int FADE_TICKS = 200;
+    private static final int YELLOW_TICKS = 600;
 
     public PvpPickupScreen(PvpPickupMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -22,6 +25,29 @@ public final class PvpPickupScreen extends AbstractContainerScreen<PvpPickupMenu
     protected void renderBg(GuiGraphics gfx, float partialTick, int mouseX, int mouseY) {
         gfx.blit(BG, this.leftPos, this.topPos, 0, 0, this.imageWidth, PvpPickupMenu.PICKUP_ROWS * 18 + 17);
         gfx.blit(BG, this.leftPos, this.topPos + PvpPickupMenu.PICKUP_ROWS * 18 + 17, 0, 126, this.imageWidth, 96);
+
+        int wellX = this.leftPos + 8;
+        int wellY = this.topPos + 18;
+        int wellW = 9 * 18;
+        int wellH = PvpPickupMenu.PICKUP_ROWS * 18;
+        gfx.fill(wellX, wellY, wellX + wellW, wellY + wellH, 0xFF0B0B0B);
+        gfx.renderOutline(wellX - 1, wellY - 1, wellW + 2, wellH + 2, 0xFF000000);
+        gfx.renderOutline(wellX, wellY, wellW, wellH, 0xFF2A2A2A);
+
+        Component timerComp = Component.translatable("mve.death.timer", timerText());
+        int timerColor = this.menu.remainingTicks <= FADE_TICKS ? 0xFFFF5555
+                : this.menu.remainingTicks <= YELLOW_TICKS ? 0xFFFFFF55 : 0xFFFFFFFF;
+        gfx.drawString(this.font, timerComp, this.leftPos + this.imageWidth - this.font.width(timerComp) - 8,
+                this.topPos + 6, timerColor);
+    }
+
+    private String timerText() {
+        int total = Math.max(0, (this.menu.remainingTicks + 19) / 20);
+        return String.format("%02d:%02d", total / 60, total % 60);
+    }
+
+    public void tickTimer() {
+        if (this.menu.remainingTicks > 0) this.menu.remainingTicks--;
     }
 
     @Override

@@ -9,7 +9,6 @@
   "mve.death.to_title": "Title screen",
   "mve.death.back": "Back",
   "mve.death.timer": "%s left",
-  "mve.pvp.take_hint": "Click to take this item",
   "mve.pvp.title": "Pick up items",
   "mve.pvp.inventory": "Inventory"
 }

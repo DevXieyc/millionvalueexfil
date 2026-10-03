@@ -159,7 +159,7 @@ public final class MveDebug {
         }
         DeathTx txn = new DeathTx(java.util.UUID.randomUUID(), corpse.getUUID(), corpse.blockPosition(),
                 player.level().dimension(), Component.literal("Debug corpse"), false, 0, 0,
-                entries, 0, 0, DeathTx.PHASE_ACTIVE);
+                entries, seconds * 20, 0, DeathTx.PHASE_ACTIVE);
         TxManager.putDummyTxn(txn);
         int total = entries.size();
         player.sendSystemMessage(

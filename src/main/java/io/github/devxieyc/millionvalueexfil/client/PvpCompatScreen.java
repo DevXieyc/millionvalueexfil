@@ -2,7 +2,6 @@
 package io.github.devxieyc.millionvalueexfil.client;
 
 import java.util.UUID;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -59,7 +58,7 @@ public final class PvpCompatScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics gfx, int mouseX, int mouseY, float partialTick) {
-        gfx.fillGradient(0, 0, this.width, this.height, 1615855616, -1602211792);
+        gfx.fillGradient(0, 0, this.width, this.height, 0xC0101010, 0xD0101010);
     }
 
     @Override
@@ -68,27 +67,27 @@ public final class PvpCompatScreen extends Screen {
         int cs = this.height >= 340 && this.width >= 400 ? 2 : 1;
         this.contentScale = cs;
 
-        int cw = this.width / cs;
-        int availH = this.height / cs - 10 - 24;
-        int rows = Mth.clamp((availH - 40) / 36, 2, 6);
+        long itemCount = view.entries().stream().filter(e -> e.state() != 2).count();
+        int rows = Mth.clamp((int) ((itemCount + 8) / 9), 1, 6);
         this.gridRows = rows;
         grid.layout(9, rows);
 
-        int x0 = (cw - PANEL_WIDTH) / 2;
-        int sectionH = 31 + rows * 18;
-        int y0 = 10;
+        int x0 = (this.width / cs - PANEL_WIDTH) / 2;
+        int headerH = 14;
+        int panelH = headerH + rows * 18 + 7;
+        int y0 = Math.max(8, (this.height / cs - panelH) / 2);
 
         gfx.pose().pushPose();
         gfx.pose().scale(cs, cs, 1.0F);
         double mx = mouseX / (double) cs;
         double my = mouseY / (double) cs;
 
-        drawPanel(gfx, x0, y0 - 3, PANEL_WIDTH, sectionH + 6);
-        gfx.drawString(this.font, Component.translatable("mve.pvp.take_hint"), x0 + 2, y0, 0xFFFFFFFF);
+        drawPanel(gfx, x0, y0, PANEL_WIDTH, panelH);
+        gfx.drawString(this.font, this.title, x0 + 2, y0 + 3, 0xFFFFFFFF);
         Component timerComp = Component.translatable("mve.death.timer", timerText());
         int timerColor = this.ticks <= FADE_TICKS ? 0xFFFF5555 : this.ticks <= YELLOW_TICKS ? 0xFFFFFF55 : 0xFFFFFFFF;
-        gfx.drawString(this.font, timerComp, x0 + PANEL_WIDTH - this.font.width(timerComp) - 2, y0, timerColor);
-        this.gridY = y0 + 27;
+        gfx.drawString(this.font, timerComp, x0 + PANEL_WIDTH - this.font.width(timerComp) - 2, y0 + 3, timerColor);
+        this.gridY = y0 + headerH;
         this.tooltipEntry = grid.render(gfx, this.minecraft, x0 + 2, this.gridY, mx, my);
 
         gfx.pose().popPose();
