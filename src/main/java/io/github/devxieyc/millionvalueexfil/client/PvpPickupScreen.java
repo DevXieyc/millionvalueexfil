@@ -1,17 +1,17 @@
-// Million Value Exfil - PVP pickup screen (vanilla double-chest style, recessed item well)
+// Million Value Exfil - PVP pickup screen (mod-owned chest texture, recessed item well)
 package io.github.devxieyc.millionvalueexfil.client;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import io.github.devxieyc.millionvalueexfil.Mve;
 import io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu;
 
 public final class PvpPickupScreen extends AbstractContainerScreen<PvpPickupMenu> {
-    private static final ResourceLocation BG =
-            ResourceLocation.withDefaultNamespace("textures/gui/container/generic_54.png");
+    private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath(
+            Mve.MODID, "textures/gui/pvp_54.png");
     private static final int FADE_TICKS = 200;
     private static final int YELLOW_TICKS = 600;
 
@@ -26,23 +26,15 @@ public final class PvpPickupScreen extends AbstractContainerScreen<PvpPickupMenu
         gfx.blit(BG, this.leftPos, this.topPos, 0, 0, this.imageWidth, PvpPickupMenu.PICKUP_ROWS * 18 + 17);
         gfx.blit(BG, this.leftPos, this.topPos + PvpPickupMenu.PICKUP_ROWS * 18 + 17, 0, 126, this.imageWidth, 96);
 
-        int wellX = this.leftPos + 8;
-        int wellY = this.topPos + 18;
-        int wellW = 9 * 18;
-        int wellH = PvpPickupMenu.PICKUP_ROWS * 18;
-        gfx.fill(wellX, wellY, wellX + wellW, wellY + wellH, 0xFF0B0B0B);
-        gfx.renderOutline(wellX - 1, wellY - 1, wellW + 2, wellH + 2, 0xFF000000);
-        gfx.renderOutline(wellX, wellY, wellW, wellH, 0xFF2A2A2A);
-
         int itemCount = 0;
         for (int i = 0; i < PvpPickupMenu.PICKUP_SLOTS; i++) {
             if (!this.menu.pickupStack(i).isEmpty()) itemCount++;
         }
-        int trackX = this.leftPos + this.imageWidth - 5;
+        int trackX = this.leftPos + 8 + PvpPickupMenu.PICKUP_COLUMNS * 18 + 14;
         int trackY = this.topPos + 18;
-        int trackH = wellH - 2;
+        int trackH = PvpPickupMenu.PICKUP_ROWS * 18 - 2;
         gfx.fill(trackX, trackY, trackX + 4, trackY + trackH, 0xFF1A1A1A);
-        int totalRows = (itemCount + 8) / 9;
+        int totalRows = (itemCount + PvpPickupMenu.PICKUP_COLUMNS - 1) / PvpPickupMenu.PICKUP_COLUMNS;
         if (totalRows > PvpPickupMenu.PICKUP_ROWS) {
             int thumbH = Math.max(8, trackH * PvpPickupMenu.PICKUP_ROWS / totalRows);
             gfx.fill(trackX, trackY, trackX + 4, trackY + thumbH, 0xFF8B8B8B);

@@ -19,8 +19,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 public class PvpPickupMenu extends AbstractContainerMenu {
-    public static final int PICKUP_SLOTS = 54;
+    public static final int PICKUP_SLOTS = 48;
     public static final int PICKUP_ROWS = 6;
+    public static final int PICKUP_COLUMNS = 8;
 
     private final net.minecraft.world.SimpleContainer pickup = new net.minecraft.world.SimpleContainer(PICKUP_SLOTS);
     private final List<UUID> slotEntries = new ArrayList<>(Collections.nCopies(PICKUP_SLOTS, (UUID) null));
@@ -70,8 +71,8 @@ public class PvpPickupMenu extends AbstractContainerMenu {
 
     private void addSlots(Inventory playerInv) {
         for (int i = 0; i < PICKUP_SLOTS; i++) {
-            int col = i % 9;
-            int row = i / 9;
+            int col = i % PICKUP_COLUMNS;
+            int row = i / PICKUP_COLUMNS;
             addSlot(new Slot(this.pickup, i, 8 + col * 18, 18 + row * 18) {
                 @Override
                 public boolean mayPlace(ItemStack stack) {
