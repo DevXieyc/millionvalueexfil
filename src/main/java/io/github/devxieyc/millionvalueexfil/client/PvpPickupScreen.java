@@ -10,8 +10,8 @@ import io.github.devxieyc.millionvalueexfil.Mve;
 import io.github.devxieyc.millionvalueexfil.menu.PvpPickupMenu;
 
 public final class PvpPickupScreen extends AbstractContainerScreen<PvpPickupMenu> {
-    private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath(
-            Mve.MODID, "textures/gui/pvp_54.png");
+    private static final ResourceLocation BG =
+            ResourceLocation.withDefaultNamespace("textures/gui/container/generic_54.png");
     private static final int FADE_TICKS = 200;
     private static final int YELLOW_TICKS = 600;
 
@@ -26,13 +26,23 @@ public final class PvpPickupScreen extends AbstractContainerScreen<PvpPickupMenu
         gfx.blit(BG, this.leftPos, this.topPos, 0, 0, this.imageWidth, PvpPickupMenu.PICKUP_ROWS * 18 + 17);
         gfx.blit(BG, this.leftPos, this.topPos + PvpPickupMenu.PICKUP_ROWS * 18 + 17, 0, 126, this.imageWidth, 96);
 
+        int wellX = this.leftPos + 8;
+        int wellY = this.topPos + 18;
+        int wellW = 9 * 18;
+        int wellH = PvpPickupMenu.PICKUP_ROWS * 18;
+        gfx.fill(wellX, wellY, wellX + wellW, wellY + wellH, 0xFF0B0B0B);
+        gfx.fill(wellX, wellY, wellX + wellW, wellY + 1, 0xFF000000);
+        gfx.fill(wellX, wellY, wellX + 1, wellY + wellH, 0xFF000000);
+        gfx.fill(wellX, wellY + wellH - 1, wellX + wellW, wellY + wellH, 0xFF555555);
+        gfx.fill(wellX + wellW - 1, wellY, wellX + wellW, wellY + wellH, 0xFF555555);
+
         int itemCount = 0;
         for (int i = 0; i < PvpPickupMenu.PICKUP_SLOTS; i++) {
             if (!this.menu.pickupStack(i).isEmpty()) itemCount++;
         }
-        int trackX = this.leftPos + 8 + PvpPickupMenu.PICKUP_COLUMNS * 18 + 14;
-        int trackY = this.topPos + 18;
-        int trackH = PvpPickupMenu.PICKUP_ROWS * 18 - 2;
+        int trackX = wellX + wellW - 4;
+        int trackY = wellY + 1;
+        int trackH = wellH - 2;
         gfx.fill(trackX, trackY, trackX + 4, trackY + trackH, 0xFF1A1A1A);
         int totalRows = (itemCount + PvpPickupMenu.PICKUP_COLUMNS - 1) / PvpPickupMenu.PICKUP_COLUMNS;
         if (totalRows > PvpPickupMenu.PICKUP_ROWS) {
