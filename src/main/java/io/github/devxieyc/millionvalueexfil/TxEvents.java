@@ -32,10 +32,10 @@ public final class TxEvents {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+    @SubscribeEvent(priority = EventPriority.LOW, receiveCanceled = true)
     public static void onDrops(LivingDropsEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            TxManager.commit(player, event.getDrops(), event.isCanceled());
+            TxManager.commit(player, event);
         }
     }
 

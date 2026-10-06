@@ -21,6 +21,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
@@ -39,7 +40,7 @@ public final class TxManager {
 
     public record Pending(List<PendingItem> items, int xpLevel, float xpProgress, int xpTotal,
                           BlockPos pos, ResourceKey<Level> dimension, Component message,
-                          boolean hardcore, long stamp) {}
+                          boolean hardcore, long stamp, ResourceKey<DamageType> damageType) {}
 
     private static final Map<UUID, Pending> PENDING = new HashMap<>();
     private static final Map<UUID, Set<UUID>> VIEWERS = new HashMap<>();
@@ -107,12 +108,11 @@ public final class TxManager {
         Pending pending = new Pending(items, player.experienceLevel, player.experienceProgress,
                 player.totalExperience, player.blockPosition(), player.level().dimension(),
                 player.getCombatTracker().getDeathMessage(), player.level().getLevelData().isHardcore(),
-                player.server.getTickCount());
+                player.server.getTickCount(), source.typeHolder().unwrapKey().orElse(null));
         player.experienceLevel = 0;
         player.experienceProgress = 0.0F;
         player.totalExperience = 0;
         PENDING.put(player.getUUID(), pending);
-        MveNet.sendToPlayer(player, new MveNet.PreparePayload());
     }
 
     private static boolean shouldTrigger(ServerPlayer player, DamageSource source) {
@@ -127,11 +127,17 @@ public final class TxManager {
     }
 
     public static void onDeathSettled(ServerPlayer player, boolean canceled) {
-        if (!canceled) return;
-        Pending pending = PENDING.remove(player.getUUID());
+        Pending pending = PENDING.get(player.getUUID());
+        if (canceled) {
+            if (pending != null) {
+                Mve.LOGGER.info("[MVE] death averted by another mod, freezing undone");
+                restoreXp(player, pending);
+                PENDING.remove(player.getUUID());
+            }
+            return;
+        }
         if (pending != null) {
-            Mve.LOGGER.info("[MVE] death averted by another mod, freezing undone");
-            restoreXp(player, pending);
+            MveNet.sendToPlayer(player, new MveNet.PreparePayload());
         }
     }
 
@@ -141,7 +147,9 @@ public final class TxManager {
         player.totalExperience = pending.xpTotal();
     }
 
-    public static void commit(ServerPlayer player, java.util.Collection<ItemEntity> drops, boolean eventCanceled) {
+    public static void commit(ServerPlayer player, net.neoforged.neoforge.event.entity.living.LivingDropsEvent event) {
+        java.util.Collection<ItemEntity> drops = event.getDrops();
+        boolean eventCanceled = event.isCanceled();
         Pending pending = PENDING.remove(player.getUUID());
         if (pending == null) {
             Mve.LOGGER.info("[MVE] drops event without pending snapshot");
@@ -173,6 +181,10 @@ public final class TxManager {
                 entries.add(new TxEntry(UUID.randomUUID(), item.slot(), item.stack(), TxEntry.State.DISABLED));
             }
         }
+        if (drops.isEmpty()) {
+            event.setCanceled(true);
+            Mve.LOGGER.info("[MVE] drops pool exhausted, event canceled to keep downstream consumers out");
+        }
         if (matched == 0) {
             Mve.LOGGER.info("[MVE] commit aborted: no item survived into the drop flow ({} disabled), "
                     + "vanilla-equivalent xp orbs dropped", entries.size());
@@ -185,7 +197,7 @@ public final class TxManager {
                 matched, entries.size() - matched, drops.size());
         DeathTx txn = new DeathTx(UUID.randomUUID(), player.getUUID(), pending.pos(), pending.dimension(),
                 pending.message(), pending.hardcore(), pending.xpTotal(), pending.xpLevel(), entries,
-                MveConfig.SELECTION_SECONDS.get() * 20, 0, DeathTx.PHASE_ACTIVE);
+                MveConfig.SELECTION_SECONDS.get() * 20, 0, DeathTx.PHASE_ACTIVE, pending.damageType());
         writeTxn(player, txn);
         broadcastView(player, txn, false);
     }
@@ -226,7 +238,12 @@ public final class TxManager {
         ServerLevel level = player.server.getLevel(txn.dimension);
         if (level == null) level = player.serverLevel();
         int dropped = (int) txn.entries.stream().filter(e -> e.state == TxEntry.State.DEFAULT).count();
-        dropDefaults(level, txn.pos, txn);
+        if (!serverStopping && player.isDeadOrDying() && !player.hasDisconnected()
+                && player.serverLevel() == level) {
+            replayDrops(player, txn, level);
+        } else {
+            dropDefaults(level, txn.pos, txn);
+        }
         txn.entries.removeIf(entry -> entry.state == TxEntry.State.DISABLED);
         int fee = txn.cost();
         int remain = Math.max(0, txn.xpTotal - fee);
@@ -313,6 +330,37 @@ public final class TxManager {
         }
         txn.entries.removeAll(dropped);
         txn.version++;
+    }
+
+    private static void replayDrops(ServerPlayer owner, DeathTx txn, ServerLevel level) {
+        List<ItemEntity> drops = new ArrayList<>();
+        RandomSource random = level.random;
+        for (TxEntry entry : txn.entries) {
+            if (entry.state != TxEntry.State.DEFAULT) continue;
+            ItemEntity entity = new ItemEntity(level,
+                    txn.pos.getX() + (random.nextDouble() - 0.5) * 0.5,
+                    txn.pos.getY() + 0.5,
+                    txn.pos.getZ() + (random.nextDouble() - 0.5) * 0.5,
+                    entry.stack);
+            entity.setPickUpDelay(40);
+            drops.add(entity);
+        }
+        if (drops.isEmpty()) return;
+        DamageSource source = resolveSource(owner, txn);
+        boolean canceled = net.neoforged.neoforge.common.CommonHooks.onLivingDrops(owner, source, drops, false);
+        for (ItemEntity entity : drops) level.addFreshEntity(entity);
+        Mve.LOGGER.info("[MVE] settle replay: {} item(s) offered back to the drops pipeline{} at {}",
+                drops.size(), canceled ? " (vetoed, leftovers spawned to prevent loss)" : "",
+                txn.pos.toShortString());
+    }
+
+    private static DamageSource resolveSource(ServerPlayer player, DeathTx txn) {
+        if (txn.damageType != null) {
+            return new DamageSource(player.server.registryAccess()
+                    .registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
+                    .getHolderOrThrow(txn.damageType));
+        }
+        return player.damageSources().generic();
     }
 
     private static void spawnDrop(ServerLevel level, BlockPos pos, ItemStack stack, RandomSource random) {

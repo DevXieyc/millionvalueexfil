@@ -14,7 +14,10 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void onScreenOpening(ScreenEvent.Opening event) {
-        if (event.getNewScreen() instanceof DeathScreen && MveClient.consumePrepare()) {
+        if (event.getNewScreen() instanceof DeathScreen
+                && !(event.getNewScreen() instanceof MveDeathScreen)
+                && !(event.getNewScreen() instanceof MvePendingScreen)
+                && MveClient.consumePrepare()) {
             event.setCanceled(true);
         }
     }

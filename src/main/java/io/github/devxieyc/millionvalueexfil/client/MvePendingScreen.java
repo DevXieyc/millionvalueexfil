@@ -2,17 +2,20 @@
 package io.github.devxieyc.millionvalueexfil.client;
 
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.screens.DeathScreen;
 
-public final class MvePendingScreen extends Screen {
+public final class MvePendingScreen extends DeathScreen {
     public MvePendingScreen() {
-        super(Component.translatable("mve.death.title"));
+        super(net.minecraft.network.chat.Component.empty(), false);
+    }
+
+    @Override
+    protected void init() {
     }
 
     @Override
     public void render(GuiGraphics gfx, int mouseX, int mouseY, float partialTick) {
-        super.render(gfx, mouseX, mouseY, partialTick);
+        renderBackground(gfx, mouseX, mouseY, partialTick);
         gfx.pose().pushPose();
         gfx.pose().scale(2.0F, 2.0F, 1.0F);
         gfx.drawCenteredString(this.font, this.title, this.width / 4, 5, 0xFFFFFFFF);
@@ -22,15 +25,5 @@ public final class MvePendingScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics gfx, int mouseX, int mouseY, float partialTick) {
         gfx.fillGradient(0, 0, this.width, this.height, 1615855616, -1602211792);
-    }
-
-    @Override
-    public boolean shouldCloseOnEsc() {
-        return false;
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
     }
 }

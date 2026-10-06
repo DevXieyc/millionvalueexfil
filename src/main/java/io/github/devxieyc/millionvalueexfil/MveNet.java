@@ -194,6 +194,7 @@ public final class MveNet {
     }
 
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
+        if (player.hasDisconnected()) return;
         PacketDistributor.sendToPlayer(player, payload);
     }
 

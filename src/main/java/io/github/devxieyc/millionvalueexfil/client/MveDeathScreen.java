@@ -6,14 +6,14 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.ConfirmScreen;
-import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import io.github.devxieyc.millionvalueexfil.MveNet;
 import io.github.devxieyc.millionvalueexfil.XpMath;
 
-public final class MveDeathScreen extends Screen {
+public final class MveDeathScreen extends DeathScreen {
     private static final ResourceLocation XP_BG = ResourceLocation.withDefaultNamespace("hud/experience_bar_background");
     private static final ResourceLocation XP_FILL = ResourceLocation.withDefaultNamespace("hud/experience_bar_progress");
     private static final int FADE_TICKS = 200;
@@ -33,7 +33,7 @@ public final class MveDeathScreen extends Screen {
     private int availGridY;
 
     public MveDeathScreen(MveNet.ViewPayload view) {
-        super(Component.translatable("mve.death.title"));
+        super(net.minecraft.network.chat.Component.empty(), view.hardcore());
         this.view = view;
         this.txnId = view.txnId();
         this.ticks = view.ticksLeft();
@@ -92,11 +92,6 @@ public final class MveDeathScreen extends Screen {
     }
 
     @Override
-    public boolean shouldCloseOnEsc() {
-        return false;
-    }
-
-    @Override
     public void renderBackground(GuiGraphics gfx, int mouseX, int mouseY, float partialTick) {
         gfx.fillGradient(0, 0, this.width, this.height, 1615855616, -1602211792);
     }
@@ -152,7 +147,11 @@ public final class MveDeathScreen extends Screen {
 
         int availY = y0 + sectionH + 12;
         int availPanelY = availY - 3;
-        drawPanel(gfx, x0, availPanelY, PANEL_WIDTH, sectionH + 6);
+        int availFill = this.ticks < FADE_TICKS
+                ? (int) ((Math.sin(this.ticks * 0.25) * 0.5 + 0.5) * (0x90 - 0x30)) + 0x30
+                : 0x90;
+        gfx.fill(x0, availPanelY, x0 + PANEL_WIDTH, availPanelY + sectionH + 6, availFill << 24 | 0x060606);
+        gfx.renderOutline(x0, availPanelY, PANEL_WIDTH, sectionH + 6, 0xFF555555);
         Component timerComp = Component.translatable("mve.death.timer", timerText());
         int timerColor = this.ticks <= FADE_TICKS ? 0xFFFF5555 : this.ticks <= YELLOW_TICKS ? 0xFFFFFF55 : 0xFFFFFFFF;
         gfx.drawString(this.font, Component.translatable("mve.death.select"), x0 + 2, availY, 0xFFFFFFFF);
@@ -161,11 +160,6 @@ public final class MveDeathScreen extends Screen {
         drawLevel(gfx, x0 + 2, availY + 20, view.xpTotal());
         this.availGridY = availY + 27;
         MveNet.EntryData availHover = available.render(gfx, this.minecraft, x0 + 2, this.availGridY, mx, my);
-        if (this.ticks < FADE_TICKS) {
-            float fade = 1.0F - this.ticks / (float) FADE_TICKS;
-            int alpha = Math.min(210, (int) (fade * 150 + 55 * (float) Math.abs(Math.sin(this.ticks * 0.35))));
-            gfx.fill(x0, availPanelY, x0 + PANEL_WIDTH, availPanelY + sectionH + 6, alpha << 24 | 0x060606);
-        }
         this.tooltipEntry = availHover != null ? availHover : keptHover;
 
         gfx.pose().popPose();
@@ -251,10 +245,5 @@ public final class MveDeathScreen extends Screen {
         if (my >= this.availGridY && my < this.availGridY + this.gridRows * 18) available.scrollBy(scrollY);
         else if (my >= this.keptGridY && my < this.keptGridY + this.gridRows * 18) kept.scrollBy(scrollY);
         return true;
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
     }
 }

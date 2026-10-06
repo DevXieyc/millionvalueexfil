@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.level.Level;
 
 public final class DeathTx {
@@ -32,10 +33,12 @@ public final class DeathTx {
     public int ticksLeft;
     public int version;
     public int phase;
+    public final ResourceKey<DamageType> damageType;
 
     public DeathTx(UUID txnId, UUID ownerId, BlockPos pos, ResourceKey<Level> dimension,
                    Component deathMessage, boolean hardcore, int xpTotal, int xpLevelAtDeath,
-                   List<TxEntry> entries, int ticksLeft, int version, int phase) {
+                   List<TxEntry> entries, int ticksLeft, int version, int phase,
+                   ResourceKey<DamageType> damageType) {
         this.txnId = txnId;
         this.ownerId = ownerId;
         this.pos = pos;
@@ -48,6 +51,7 @@ public final class DeathTx {
         this.ticksLeft = ticksLeft;
         this.version = version;
         this.phase = phase;
+        this.damageType = damageType;
     }
 
     public int reservedCount() {
@@ -109,6 +113,7 @@ public final class DeathTx {
         root.putInt("Version", version);
         root.putInt("Phase", phase);
         root.putBoolean("Hardcore", hardcore);
+        if (damageType != null) root.putString("Dmg", damageType.location().toString());
         try {
             Tag msg = ComponentSerialization.CODEC
                     .encodeStart(registries.createSerializationContext(NbtOps.INSTANCE), deathMessage)
@@ -145,7 +150,10 @@ public final class DeathTx {
                 entries,
                 root.getInt("Ticks"),
                 root.getInt("Version"),
-                root.getInt("Phase")
+                root.getInt("Phase"),
+                root.contains("Dmg")
+                        ? ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse(root.getString("Dmg")))
+                        : null
         );
     }
 }
