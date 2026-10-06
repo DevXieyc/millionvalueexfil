@@ -2,6 +2,23 @@
 
 > 反馈代号规则：ISn = Issue n。状态：OPEN / FIXED / WONTFIX / BY-DESIGN。
 > 每条记录：代号、描述、状态、修复提交或说明。
+>
+> ## 架构关系命名（v1.1.0 起）
+> **管线共栖（Pipeline Symbiosis）**——MVE 与互助/不掉落/墓碑/图腾类模组的关系：
+> 各方只占用原版事件管线上的一个槽位（slot），互不引用对方代码，靠三个单方面契约咬合：
+> ① 上游让位（fate diff：池中缺席即 DISABLED）；② 空池中止（matched=0 整体退出）；
+> ③ 下游回灌（结算重放 LivingDropsEvent 供 LOWEST 槽位接管）。
+> 可视化总纲：docs/死亡与掉落管线.html。
+
+## v1.1.0 路线（管线共栖版）
+1. IS14 Prepare 移至"确认未取消"分支
+2. IS16 死亡界面 extends 原版 DeathScreen
+3. IS15 drops 托管 LOWEST→LOW + 全托管取消事件（共栖硬约束）
+4. IS17 DeathTx 记录死亡来源 + 断线发包防御
+5. IS13/IS31 结算重放（下游回灌落地，GraveStone 实测）
+6. IS20 最后 10 秒半透明脉动
+7. 收尾：版本号 1.1.0、双装实测
+（IS32 容器模式复制 bug 后置 v1.1.x）
 
 ## 代号表
 

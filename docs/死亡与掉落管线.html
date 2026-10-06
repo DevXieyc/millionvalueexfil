@@ -59,6 +59,127 @@
   <span><span class="s mve">MVE</span></span><span><span class="s c">墓碑 C</span></span>
 </div>
 
+<h2>流程总图</h2>
+<svg viewBox="0 0 940 800" style="width:100%;height:auto;background:#161616;border:1px solid #2c2c2c;border-radius:8px">
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#888"/>
+    </marker>
+    <marker id="ahR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#ff5555"/>
+    </marker>
+    <marker id="ahG" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#55ff55"/>
+    </marker>
+  </defs>
+
+  <!-- 主线连接 -->
+  <line x1="470" y1="56"  x2="470" y2="86"  stroke="#888" marker-end="url(#ah)"/>
+  <line x1="470" y1="128" x2="470" y2="158" stroke="#888" marker-end="url(#ah)"/>
+  <line x1="470" y1="208" x2="470" y2="238" stroke="#888" marker-end="url(#ah)"/>
+  <line x1="470" y1="280" x2="470" y2="310" stroke="#888" marker-end="url(#ah)"/>
+  <line x1="470" y1="360" x2="470" y2="390" stroke="#888" marker-end="url(#ah)"/>
+  <line x1="470" y1="540" x2="470" y2="570" stroke="#888" marker-end="url(#ah)"/>
+  <line x1="470" y1="612" x2="470" y2="642" stroke="#888" marker-end="url(#ah)"/>
+  <line x1="470" y1="690" x2="470" y2="718" stroke="#888" marker-end="url(#ah)"/>
+
+  <!-- 原版主线 -->
+  <g font-size="13.5" text-anchor="middle">
+    <rect x="350" y="16"  width="240" height="40" rx="6" fill="#232323" stroke="#e8e8e8"/>
+    <text x="470" y="41" fill="#f2f2f2">伤害结算（Incoming → Pre/Post）</text>
+    <rect x="350" y="88"  width="240" height="40" rx="6" fill="#232323" stroke="#e8e8e8"/>
+    <text x="470" y="113" fill="#f2f2f2">濒死瞬间 health ≤ 0</text>
+    <rect x="350" y="160" width="240" height="48" rx="6" fill="#232323" stroke="#e8e8e8"/>
+    <text x="470" y="180" fill="#f2f2f2">die() → LivingDeathEvent</text>
+    <text x="470" y="198" fill="#999" font-size="11.5">（每次死亡仅派发一次）</text>
+    <rect x="350" y="240" width="240" height="40" rx="6" fill="#232323" stroke="#e8e8e8"/>
+    <text x="470" y="265" fill="#f2f2f2">CombatKill 包 → 真实死亡</text>
+    <rect x="350" y="312" width="240" height="48" rx="6" fill="#232323" stroke="#e8e8e8"/>
+    <text x="470" y="332" fill="#f2f2f2">dropAllDeathLoot</text>
+    <text x="470" y="350" fill="#999" font-size="11.5">captureDrops → dropAll → XP 球</text>
+    <rect x="350" y="392" width="240" height="148" rx="6" fill="#232323" stroke="#e8e8e8"/>
+    <text x="470" y="412" fill="#f2f2f2">LivingDropsEvent 派发</text>
+    <rect x="362" y="424" width="216" height="24" rx="4" fill="#a8a8a81a" stroke="#a8a8a8"/>
+    <text x="470" y="440" fill="#c8c8c8" font-size="11.5">@HIGHEST Curios 饰品保留（不入池）</text>
+    <rect x="362" y="452" width="216" height="24" rx="4" fill="#55ffff1a" stroke="#55ffff"/>
+    <text x="470" y="468" fill="#55ffff" font-size="11.5">@NORMAL [B] 条件回收（池空⇒MVE中止）</text>
+    <rect x="362" y="480" width="216" height="24" rx="4" fill="#ff55551a" stroke="#ff5555"/>
+    <text x="470" y="496" fill="#ff5555" font-size="11.5">@LOW [MVE] fate diff 托管</text>
+    <rect x="362" y="508" width="216" height="24" rx="4" fill="#a8a8a81a" stroke="#a8a8a8"/>
+    <text x="470" y="524" fill="#c8c8c8" font-size="11.5">@LOWEST [C] 墓碑收集 + removeDrops</text>
+    <rect x="350" y="572" width="240" height="40" rx="6" fill="#232323" stroke="#e8e8e8"/>
+    <text x="470" y="597" fill="#f2f2f2">剩余物品落地（＝掉落完成）</text>
+    <rect x="350" y="644" width="240" height="48" rx="6" fill="#232323" stroke="#e8e8e8"/>
+    <text x="470" y="664" fill="#f2f2f2">死亡状态（躺尸）→ 重生</text>
+    <text x="470" y="682" fill="#999" font-size="11.5">Clone：PERSISTED_NBT 拷贝</text>
+    <rect x="350" y="718" width="240" height="40" rx="6" fill="#232323" stroke="#e8e8e8"/>
+    <text x="470" y="743" fill="#f2f2f2">重生返还</text>
+  </g>
+
+  <!-- 图腾关卡（左） -->
+  <g font-size="12.5">
+    <rect x="40" y="76" width="250" height="64" rx="6" fill="#ffaa0015" stroke="#ffaa00"/>
+    <text x="165" y="96" fill="#ffaa00" text-anchor="middle">[D] 图腾关卡</text>
+    <text x="165" y="114" fill="#ffcc66" text-anchor="middle" font-size="11.5">checkTotemDeathProtection</text>
+    <text x="165" y="130" fill="#ffcc66" text-anchor="middle" font-size="11.5">生效 → health=1 回滚（可反复）</text>
+  </g>
+  <line x1="290" y1="104" x2="348" y2="106" stroke="#ffaa00" marker-end="url(#ah)"/>
+  <path d="M165,76 C165,36 340,20 348,26" stroke="#ffaa00" fill="none" stroke-dasharray="4 3" marker-end="url(#ah)"/>
+  <text x="150" y="30" fill="#ffaa00" font-size="11" text-anchor="middle">救活＝回滚，死亡事件不产生</text>
+
+  <!-- 互助（右） -->
+  <g font-size="12.5">
+    <rect x="650" y="140" width="250" height="42" rx="6" fill="#55ff5515" stroke="#55ff55"/>
+    <text x="775" y="160" fill="#55ff55" text-anchor="middle">[A] @HIGHEST 取消宣告</text>
+    <text x="775" y="176" fill="#88ff88" text-anchor="middle" font-size="11">（图腾救活则本关卡不触发）</text>
+    <rect x="650" y="196" width="250" height="42" rx="6" fill="#55ff5515" stroke="#55ff55"/>
+    <text x="775" y="216" fill="#55ff55" text-anchor="middle">状态·濒死（capability，玩家存活）</text>
+    <text x="775" y="232" fill="#88ff88" text-anchor="middle" font-size="11">队友右键救助 → 复活（全管线无感）</text>
+    <rect x="650" y="252" width="250" height="42" rx="6" fill="#55ff5515" stroke="#55ff55"/>
+    <text x="775" y="272" fill="#55ff55" text-anchor="middle">无人救 → kill()</text>
+    <text x="775" y="288" fill="#88ff88" text-anchor="middle" font-size="11">die(BLED_TO_DEATH) 重入死亡宣告</text>
+  </g>
+  <line x1="590" y1="176" x2="648" y2="160" stroke="#55ff55" marker-end="url(#ahG)"/>
+  <path d="M650,276 C500,290 380,240 372,212" stroke="#55ff55" fill="none" stroke-dasharray="4 3" marker-end="url(#ahG)"/>
+
+  <!-- MVE/C 死亡快照（左） -->
+  <g font-size="12.5">
+    <rect x="40" y="164" width="250" height="38" rx="6" fill="#ff555515" stroke="#ff5555"/>
+    <text x="165" y="182" fill="#ff5555" text-anchor="middle">[MVE] @HIGHEST 快照 + 冻结经验</text>
+    <text x="165" y="196" fill="#ff9999" text-anchor="middle" font-size="11">（宣告被取消则回滚）</text>
+    <rect x="40" y="236" width="250" height="38" rx="6" fill="#a8a8a81a" stroke="#a8a8a8"/>
+    <text x="165" y="254" fill="#c8c8c8" text-anchor="middle">[C] @LOWEST 死亡快照</text>
+    <text x="165" y="268" fill="#ddd" text-anchor="middle" font-size="11">位置/物品栏/经验，供墓碑与讣告</text>
+  </g>
+  <line x1="290" y1="184" x2="348" y2="180" stroke="#ff5555" marker-end="url(#ahR)"/>
+  <line x1="290" y1="254" x2="348" y2="192" stroke="#a8a8a8" marker-end="url(#ah)"/>
+
+  <!-- 灵魂绑定类预留（左） -->
+  <g font-size="12.5">
+    <rect x="40" y="316" width="250" height="44" rx="6" fill="#55ffff15" stroke="#55ffff"/>
+    <text x="165" y="334" fill="#55ffff" text-anchor="middle">[B·类] dropAll 预留（HEAD/RETURN）</text>
+    <text x="165" y="350" fill="#99ffff" text-anchor="middle" font-size="11">灵魂绑定/饰品保留：物品从不入池</text>
+  </g>
+  <line x1="290" y1="338" x2="348" y2="334" stroke="#55ffff" marker-end="url(#ah)"/>
+
+  <!-- 结算重放（右，虚线） -->
+  <path d="M592,492 C700,500 700,560 594,586" stroke="#ff5555" fill="none" stroke-dasharray="5 4" marker-end="url(#ahR)"/>
+  <text x="745" y="545" fill="#ff5555" font-size="11.5" text-anchor="middle">结算重放（IS13）</text>
+  <text x="745" y="560" fill="#ff9999" font-size="11" text-anchor="middle">未保留物品回灌管线 → C 接管入口</text>
+
+  <!-- 重生返还（两侧） -->
+  <g font-size="12.5">
+    <rect x="40" y="712" width="250" height="44" rx="6" fill="#55ffff15" stroke="#55ffff"/>
+    <text x="165" y="730" fill="#55ffff" text-anchor="middle">[B] 重生还原回收物/经验</text>
+    <text x="165" y="746" fill="#99ffff" text-anchor="middle" font-size="11">PERSISTED_NBT 各用各键，互不冲突</text>
+    <rect x="650" y="712" width="250" height="44" rx="6" fill="#ff555515" stroke="#ff5555"/>
+    <text x="775" y="730" fill="#ff5555" text-anchor="middle">[MVE] 返还已保留物品</text>
+    <text x="775" y="746" fill="#ff9999" text-anchor="middle" font-size="11">按原槽位优先，回落 placeItemBackInInventory</text>
+  </g>
+  <line x1="290" y1="734" x2="348" y2="740" stroke="#55ffff" marker-end="url(#ah)"/>
+  <line x1="650" y1="734" x2="592" y2="740" stroke="#ff5555" marker-end="url(#ahR)"/>
+</svg>
+
 <h2>全景时间线</h2>
 
 <div class="stage">
@@ -133,6 +254,28 @@
 <div class="rule"><b style="color:#55ffff">条件回收时 MVE 整体中止</b>：池空 ⇒ 无可托管 ⇒ 静默退出（含经验处理），把舞台完整让给 B。</div>
 <div class="rule"><b style="color:#a8a8a8">结算重放是墓碑的唯一接管入口</b>：MVE 结算时把未保留物品重放掉落事件，C 在 LOWEST 自然命中死亡快照建墓（位置=死亡点，经验=0）。</div>
 <div class="rule"><b style="color:#ffaa00">图腾在宣告前、互助在宣告时、MVE/墓碑在掉落时</b>：三道关卡分属三个阶段，天然有序，互不抢戏。</div>
+
+<h2>这套关系的名称：管线共栖（Pipeline Symbiosis）</h2>
+<p>MVE 与互助/不掉落/墓碑/图腾之间不是"兼容与被兼容"，也不是竞争——各方都只占用原版事件管线上的
+<b>一个槽位（slot）</b>，在固定位置履行固定职责，彼此通过集合的增减交换信息而不引用对方任何代码。
+这种"同管线、异槽位、靠契约咬合"的关系命名为：</p>
+<div class="rule" style="border-left-color:#ffaa00"><b style="color:#ffaa00">管线共栖（Pipeline Symbiosis）</b>
+——共栖双方互不依赖，却因共享同一条宿主管线而彼此受益：保留类模组借 MVE 的缺席让位保住自己的物品，
+MVE 借墓碑的重放响应获得托管期，墓碑借 MVE 的窗口期获得"延迟结算"的物品。</div>
+<p class="sub">三个契约（MVE 单方面维护，无需对方知情）：
+① <b>上游让位</b>——fate diff：池中缺席即 DISABLED，把物品还给上游保留者；
+② <b>空池中止</b>——matched=0 时整体退出（含经验处理），把舞台让给条件回收；
+③ <b>下游回灌</b>——结算时重放 LivingDropsEvent，让 LOWEST 槽位的墓碑照常接管。</p>
+
+<h2>v1.1.0 路线（管线共栖版）</h2>
+<div class="step"><div class="n">1</div><div class="t"><b>IS14</b> Prepare 移至"确认未取消"分支（取消死亡不再误发占位屏）</div></div>
+<div class="step"><div class="n">2</div><div class="t"><b>IS16</b> MveDeathScreen / MvePendingScreen extends 原版 DeathScreen（类型语义＝死亡屏，GUI 锁定类模组放行）</div></div>
+<div class="step"><div class="n">3</div><div class="t"><b>IS15</b> drops 托管 LOWEST→LOW + 全托管取消事件（共栖硬约束落地：夹在保留类与墓碑之间，压制空墓与竞态）</div></div>
+<div class="step"><div class="n">4</div><div class="t"><b>IS17</b> DeathTx 记录死亡来源（DamageType ResourceKey）+ 断线发包防御</div></div>
+<div class="step"><div class="n">5</div><div class="t"><b>IS13/IS31</b> 结算重放 CommonHooks.onLivingDrops（下游回灌落地；超时/放弃路径先行，登出路径实测）</div></div>
+<div class="step"><div class="n">6</div><div class="t"><b>IS20</b> 最后 10 秒半透明脉动（面板背景 alpha 调制，替代深色遮罩）</div></div>
+<div class="step"><div class="n">7</div><div class="t"><b>收尾</b> 版本号 1.0.0 → 1.1.0、mods.toml 更新、GraveStone/PlayerRevive 双装实测表过一遍</div></div>
+<p class="sub">IS32（容器模式复制 bug）后置至 v1.1.x：共栖管线不依赖容器模式，兼容模式已完整覆盖拾取语义。</p>
 
 </body>
 </html>
