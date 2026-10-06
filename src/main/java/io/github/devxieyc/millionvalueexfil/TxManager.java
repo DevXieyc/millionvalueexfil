@@ -250,7 +250,11 @@ public final class TxManager {
         int keep = Math.min((int) Math.round(MveConfig.XP_KEEP_RATIO.get() * remain), remain);
         int lost = remain - keep;
         if (lost > 0) ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos), XpMath.deathDrop(lost));
-        player.giveExperiencePoints(keep);
+        if (player.isDeadOrDying()) {
+            txn.keepXpPending = keep;
+        } else {
+            player.giveExperiencePoints(keep);
+        }
         txn.phase = DeathTx.PHASE_DROPPED;
         txn.ticksLeft = 0;
         txn.version++;
@@ -277,6 +281,11 @@ public final class TxManager {
                 player.getInventory().placeItemBackInInventory(entry.stack);
             }
         }
+        if (txn.keepXpPending > 0) {
+            player.giveExperiencePoints(txn.keepXpPending);
+            Mve.LOGGER.info("[MVE] delivered deferred keep xp: {}", txn.keepXpPending);
+            txn.keepXpPending = 0;
+        }
         Mve.LOGGER.info("[MVE] returned {} kept item(s) on respawn", reserved.size());
         closeAll(player.server, txn.ownerId);
     }
@@ -295,14 +304,23 @@ public final class TxManager {
         if (level == null) level = player.serverLevel();
         dropAll(level, txn);
         ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos), Math.min(7 * txn.xpLevelAtDeath, 100));
+        if (txn.keepXpPending > 0) {
+            ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos), txn.keepXpPending);
+            Mve.LOGGER.info("[MVE] deferred keep xp dropped as orbs on logout: {}", txn.keepXpPending);
+        }
         closeAll(player.server, txn.ownerId);
     }
 
     public static void onLogin(ServerPlayer player) {
         DeathTx txn = readTxn(player);
-        if (txn != null) {
-            sendView(player, txn, false, player.getScore());
+        if (txn == null) return;
+        if (txn.phase == DeathTx.PHASE_DROPPED && txn.keepXpPending > 0) {
+            player.giveExperiencePoints(txn.keepXpPending);
+            Mve.LOGGER.info("[MVE] delivered deferred keep xp on login: {}", txn.keepXpPending);
+            txn.keepXpPending = 0;
+            writeTxn(player, txn);
         }
+        sendView(player, txn, false, player.getScore());
     }
 
     private static void dropDefaults(ServerLevel level, BlockPos pos, DeathTx txn) {
