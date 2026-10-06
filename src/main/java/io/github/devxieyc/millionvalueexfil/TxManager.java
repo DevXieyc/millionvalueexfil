@@ -149,16 +149,9 @@ public final class TxManager {
 
     public static void commit(ServerPlayer player, net.neoforged.neoforge.event.entity.living.LivingDropsEvent event) {
         java.util.Collection<ItemEntity> drops = event.getDrops();
-        boolean eventCanceled = event.isCanceled();
         Pending pending = PENDING.remove(player.getUUID());
         if (pending == null) {
             Mve.LOGGER.info("[MVE] drops event without pending snapshot");
-            return;
-        }
-        if (eventCanceled) {
-            Mve.LOGGER.info("[MVE] drops event canceled by another mod");
-            restoreXp(player, pending);
-            MveNet.sendToPlayer(player, new MveNet.ClosePayload(player.getUUID()));
             return;
         }
         List<TxEntry> entries = new ArrayList<>();
@@ -184,14 +177,6 @@ public final class TxManager {
         if (drops.isEmpty()) {
             event.setCanceled(true);
             Mve.LOGGER.info("[MVE] drops pool exhausted, event canceled to keep downstream consumers out");
-        }
-        if (matched == 0) {
-            Mve.LOGGER.info("[MVE] commit aborted: no item survived into the drop flow ({} disabled), "
-                    + "vanilla-equivalent xp orbs dropped", entries.size());
-            ExperienceOrb.award(player.serverLevel(), Vec3.atCenterOf(pending.pos()),
-                    Math.min(7 * pending.xpLevel(), 100));
-            MveNet.sendToPlayer(player, new MveNet.ClosePayload(player.getUUID()));
-            return;
         }
         Mve.LOGGER.info("[MVE] transaction created: {} kept-custody + {} disabled, {} drop(s) left for others",
                 matched, entries.size() - matched, drops.size());
@@ -249,9 +234,9 @@ public final class TxManager {
         int remain = Math.max(0, txn.xpTotal - fee);
         int keep = Math.min((int) Math.round(MveConfig.XP_KEEP_RATIO.get() * remain), remain);
         int lost = remain - keep;
-        if (lost > 0) ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos), XpMath.deathDrop(lost));
+        if (lost > 0) ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos), lost);
         if (player.isDeadOrDying()) {
-            txn.keepXpPending = keep;
+            txn.xpKeep = keep;
         } else {
             player.giveExperiencePoints(keep);
         }
@@ -259,8 +244,8 @@ public final class TxManager {
         txn.ticksLeft = 0;
         txn.version++;
         writeTxn(player, txn);
-        Mve.LOGGER.info("[MVE] settled: {} item(s) kept for return, {} dropped at {}, xp keep={} lost-orbs={}",
-                txn.reservedCount(), dropped, txn.pos.toShortString(), keep, lost > 0 ? XpMath.deathDrop(lost) : 0);
+        Mve.LOGGER.info("[MVE] settled: {} item(s) kept for return, {} dropped at {}, xp keep={} lost={}",
+                txn.reservedCount(), dropped, txn.pos.toShortString(), keep, lost);
         broadcastView(player, txn, false);
         closeAll(player.server, txn.ownerId);
     }
@@ -269,8 +254,15 @@ public final class TxManager {
         DeathTx txn = takeTxn(player);
         if (txn == null) return;
         if (txn.phase == DeathTx.PHASE_ACTIVE) settle(player, txn);
-        ServerLevel level = player.server.getLevel(txn.dimension);
-        if (level == null) level = player.serverLevel();
+        returnReserved(player, txn);
+        if (txn.xpKeep > 0) {
+            player.giveExperiencePoints(txn.xpKeep);
+            Mve.LOGGER.info("[MVE] delivered keep xp on respawn: {}", txn.xpKeep);
+        }
+        closeAll(player.server, txn.ownerId);
+    }
+
+    private static int returnReserved(ServerPlayer player, DeathTx txn) {
         List<TxEntry> reserved = new ArrayList<>();
         for (TxEntry entry : txn.entries) if (entry.state == TxEntry.State.RESERVED) reserved.add(entry);
         reserved.sort(Comparator.comparingInt(e -> e.slot));
@@ -281,13 +273,10 @@ public final class TxManager {
                 player.getInventory().placeItemBackInInventory(entry.stack);
             }
         }
-        if (txn.keepXpPending > 0) {
-            player.giveExperiencePoints(txn.keepXpPending);
-            Mve.LOGGER.info("[MVE] delivered deferred keep xp: {}", txn.keepXpPending);
-            txn.keepXpPending = 0;
+        if (!reserved.isEmpty()) {
+            Mve.LOGGER.info("[MVE] returned {} kept item(s)", reserved.size());
         }
-        Mve.LOGGER.info("[MVE] returned {} kept item(s) on respawn", reserved.size());
-        closeAll(player.server, txn.ownerId);
+        return reserved.size();
     }
 
     public static void onLogout(ServerPlayer player) {
@@ -298,27 +287,27 @@ public final class TxManager {
         for (Set<UUID> viewers : VIEWERS.values()) viewers.remove(id);
         for (Set<UUID> compat : COMPAT_VIEWERS.values()) compat.remove(id);
         if (serverStopping) return;
-        DeathTx txn = takeTxn(player);
+        DeathTx txn = readTxn(player);
         if (txn == null) return;
+        if (txn.phase == DeathTx.PHASE_DROPPED) return;
+        takeTxn(player);
         ServerLevel level = player.server.getLevel(txn.dimension);
         if (level == null) level = player.serverLevel();
         dropAll(level, txn);
-        ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos), Math.min(7 * txn.xpLevelAtDeath, 100));
-        if (txn.keepXpPending > 0) {
-            ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos), txn.keepXpPending);
-            Mve.LOGGER.info("[MVE] deferred keep xp dropped as orbs on logout: {}", txn.keepXpPending);
-        }
+        ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos),
+                Math.min(7 * txn.xpLevelAtDeath, 100));
         closeAll(player.server, txn.ownerId);
     }
 
     public static void onLogin(ServerPlayer player) {
         DeathTx txn = readTxn(player);
         if (txn == null) return;
-        if (txn.phase == DeathTx.PHASE_DROPPED && txn.keepXpPending > 0) {
-            player.giveExperiencePoints(txn.keepXpPending);
-            Mve.LOGGER.info("[MVE] delivered deferred keep xp on login: {}", txn.keepXpPending);
-            txn.keepXpPending = 0;
-            writeTxn(player, txn);
+        if (txn.phase == DeathTx.PHASE_DROPPED) {
+            int returned = returnReserved(player, txn);
+            if (txn.xpKeep > 0) player.giveExperiencePoints(txn.xpKeep);
+            Mve.LOGGER.info("[MVE] login delivery: {} reserved item(s), keep xp {}", returned, txn.xpKeep);
+            writeTxn(player, null);
+            return;
         }
         sendView(player, txn, false, player.getScore());
     }

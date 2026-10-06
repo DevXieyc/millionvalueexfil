@@ -34,7 +34,7 @@ public final class DeathTx {
     public int version;
     public int phase;
     public final ResourceKey<DamageType> damageType;
-    public int keepXpPending;
+    public int xpKeep;
 
     public DeathTx(UUID txnId, UUID ownerId, BlockPos pos, ResourceKey<Level> dimension,
                    Component deathMessage, boolean hardcore, int xpTotal, int xpLevelAtDeath,
@@ -115,7 +115,7 @@ public final class DeathTx {
         root.putInt("Phase", phase);
         root.putBoolean("Hardcore", hardcore);
         if (damageType != null) root.putString("Dmg", damageType.location().toString());
-        root.putInt("KeepXp", keepXpPending);
+        root.putInt("XpKeep", xpKeep);
         try {
             Tag msg = ComponentSerialization.CODEC
                     .encodeStart(registries.createSerializationContext(NbtOps.INSTANCE), deathMessage)
@@ -157,7 +157,7 @@ public final class DeathTx {
                         ? ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse(root.getString("Dmg")))
                         : null
         );
-        txn.keepXpPending = root.getInt("KeepXp");
+        txn.xpKeep = root.getInt("XpKeep");
         return txn;
     }
 }

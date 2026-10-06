@@ -31,10 +31,6 @@ public final class XpMath {
         return lo;
     }
 
-    public static int deathDrop(int points) {
-        return Math.min(7 * levelForPoints(points), 100);
-    }
-
     public static long levelTotal(int level) {
         return totalAt(level);
     }
