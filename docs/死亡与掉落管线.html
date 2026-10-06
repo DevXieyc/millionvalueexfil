@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>死亡与掉落管线全景 — MVE 调研</title>
+<style>
+  body{background:#141414;color:#d8d8d8;font-family:system-ui,"Microsoft YaHei",sans-serif;
+       max-width:980px;margin:0 auto;padding:24px;line-height:1.6}
+  h1{color:#fff;font-size:22px;border-bottom:2px solid #333;padding-bottom:8px}
+  h2{color:#fff;font-size:17px;margin-top:36px}
+  .sub{color:#888;font-size:13px}
+  /* 图例 */
+  .lg{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0 4px}
+  .lg span{font-size:13px}
+  /* 通用元素：方法 = 等宽芯片，状态 = 圆角胶囊 */
+  .m{display:block;font-family:Consolas,monospace;font-size:13px;background:#1f1f1f;
+     border-left:3px solid #666;padding:5px 10px;margin:6px 0;border-radius:0 6px 6px 0}
+  .m b{font-weight:600}
+  .s{display:inline-block;font-size:13px;padding:2px 12px;margin:4px 4px 0 0;border-radius:12px;
+     border:1px solid}
+  /* 各模组配色：原版 白 / 图腾D 橙 / 互助A 绿 / 不掉落B 青 / MVE 红 / 墓碑C 灰 */
+  .van{border-color:#e8e8e8;color:#f2f2f2}.van.m{border-left-color:#e8e8e8}.van.s{background:#e8e8e822}
+  .d  {border-color:#ffaa00;color:#ffaa00}.d.m{border-left-color:#ffaa00}.d.s{background:#ffaa0022}
+  .a  {border-color:#55ff55;color:#55ff55}.a.m{border-left-color:#55ff55}.a.s{background:#55ff5522}
+  .b  {border-color:#55ffff;color:#55ffff}.b.m{border-left-color:#55ffff}.b.s{background:#55ffff22}
+  .mve{border-color:#ff5555;color:#ff5555}.mve.m{border-left-color:#ff5555}.mve.s{background:#ff555522}
+  .c  {border-color:#a8a8a8;color:#c8c8c8}.c.m{border-left-color:#a8a8a8}.c.s{background:#a8a8a822}
+  /* 阶段容器 */
+  .stage{border:1px solid #2c2c2c;border-radius:8px;padding:10px 16px;margin:14px 0;background:#191919}
+  .stage>h3{margin:2px 0 8px;font-size:15px;color:#fff}
+  .note{color:#999;font-size:12.5px;margin:6px 0}
+  /* 场景走查 */
+  .step{display:flex;gap:12px;margin:10px 0}
+  .step .n{flex:0 0 26px;height:26px;border-radius:50%;background:#2a2a2a;color:#fff;
+           text-align:center;line-height:26px;font-size:13px}
+  .step .t{flex:1;border-bottom:1px dashed #2a2a2a;padding-bottom:8px}
+  /* 优先级阶梯 */
+  .bar{display:flex;align-items:center;gap:10px;margin:6px 0}
+  .bar .p{flex:0 0 84px;font-family:Consolas,monospace;font-size:12.5px;text-align:right;color:#888}
+  .bar .w{flex:1;border-radius:4px;padding:4px 12px;font-size:13px}
+  .rule{border-left:3px solid #444;padding:4px 12px;margin:8px 0;font-size:14px}
+  .arrow{color:#666;font-size:18px;text-align:center;margin:-2px 0}
+</style>
+</head>
+<body>
+
+<h1>死亡与掉落管线全景</h1>
+<p class="sub">Minecraft 1.21.1 / NeoForge 21.1.250 · 源码逐行核实 · 配套细节见
+《研究-死亡与掉落完整管线.md》《研究-不掉落类模组共存.md》《研究-互助托管墓碑三方管线.md》</p>
+
+<h2>图例</h2>
+<div class="lg">
+  <span><span class="s van">状态</span>＝玩家所处状态（可停留）</span>
+  <span><span class="m van" style="display:inline-block">方法</span>＝事件/钩子（瞬时，一瞬即过）</span>
+</div>
+<div class="lg">
+  <span><span class="s van">原版</span></span><span><span class="s d">图腾 D</span></span>
+  <span><span class="s a">互助 A</span></span><span><span class="s b">不掉落 B</span></span>
+  <span><span class="s mve">MVE</span></span><span><span class="s c">墓碑 C</span></span>
+</div>
+
+<h2>全景时间线</h2>
+
+<div class="stage">
+  <h3>阶段 0 · 伤害结算</h3>
+  <span class="m van">LivingIncomingDamageEvent —— 可取消（伤害尚未发生）</span>
+  <span class="m van">盾牌/盔甲/吸收 → LivingDamageEvent.Pre（可改伤）→ 扣血 → LivingDamageEvent.Post</span>
+  <span class="m a">[A] 倒地中免伤规则 / 过量伤害追踪（Pre @LOWEST）</span>
+</div>
+<div class="arrow">▼ 伤害结算后 health ≤ 0</div>
+
+<div class="stage">
+  <h3>阶段 1 · 濒死瞬间（原版无中间状态）</h3>
+  <span class="s van">health ≤ 0（同 tick 内继续走，不产生可停留状态）</span>
+  <span class="m van">checkTotemDeathProtection —— 图腾关卡（宣告死亡前的最后回滚点）</span>
+  <span class="m d">[D] 扩充图腾来源与种类（机制与原版图腾同关卡）</span>
+  <span class="s d">图腾生效 → health=1 回滚（死亡未宣告，可反复触发）</span>
+  <p class="note">图腾救活 ⇒ die() 根本不会被调用 ⇒ 死亡事件不产生 ⇒ 互助/掉落全程无感。</p>
+</div>
+<div class="arrow">▼ 图腾耗尽，进入 die()</div>
+
+<div class="stage">
+  <h3>阶段 2 · 死亡宣告（LivingDeathEvent，每次死亡仅派发一次）</h3>
+  <span class="m van">ServerPlayer.die → LivingDeathEvent 派发（HIGHEST→LOWEST）</span>
+  <span class="m a">[A] @HIGHEST 取消宣告 → 进入濒死</span>
+  <span class="s a">濒死状态（模组私有 capability；玩家存活，队友可右键救助）</span>
+  <span class="m mve">[MVE] @HIGHEST 快照 + 冻结经验（宣告被取消则同步回滚）</span>
+  <span class="m c">[C] @LOWEST 死亡快照（位置/物品栏/经验，供墓碑与讣告使用）</span>
+  <div class="arrow">▼ 无人取消（或 A 倒计时结束 kill() 重入本阶段）</div>
+  <span class="m van">发送 CombatKill 包 —— 客户端此刻进入死亡屏（早于掉落完成）</span>
+  <span class="s van">真实死亡（health≤0，躺尸原地）</span>
+</div>
+<div class="arrow">▼ 进入掉落管线 dropAllDeathLoot</div>
+
+<div class="stage">
+  <h3>阶段 3 · 掉落管线（captureDrops 窗口 → LivingDropsEvent）</h3>
+  <span class="m van">captureDrops 开始 → inventory.dropAll（keepInventory 门控）</span>
+  <span class="m b">[B·同类] 灵魂绑定类：dropAll HEAD 预留下架（物品不入池），RETURN 原位放回</span>
+  <span class="m van">经验球生成（早于物品掉落事件；数量 = min(等级×7,100)，MVE 冻结后为 0）</span>
+  <span class="m van">LivingDropsEvent 派发 —— 唯一统一的物品接管窗口（优先级阶梯见下）</span>
+  <span class="m van">事件结束 → 剩余集合 addFreshEntity（＝“物品掉落完成”）</span>
+</div>
+<div class="arrow">▼ 掉落完成</div>
+
+<div class="stage">
+  <h3>阶段 4 · 死后状态与重生</h3>
+  <span class="s van">已死未重生（躺在死亡点，等待玩家操作）</span>
+  <span class="m van">点重生 → Clone（PERSISTED_NBT 随之拷贝）→ PlayerRespawnEvent</span>
+  <span class="m b">[B] 重生时还原被回收的物品/经验</span>
+  <span class="m mve">[MVE] 重生时返还已保留的物品</span>
+</div>
+
+<h2>阶段 3 内部：LivingDropsEvent 优先级阶梯</h2>
+<div class="bar"><span class="p">@HIGHEST</span><span class="w c" style="background:#a8a8a81c">饰品保留（Curios + 不掉落附魔谓词）——保留物不入池</span></div>
+<div class="bar"><span class="p">@NORMAL</span><span class="w b" style="background:#55ffff1c">[B] 条件回收：掉落池中出现 Protector/触发物 → 整体回收全部物品 + 取消经验</span></div>
+<div class="bar"><span class="p">@LOW</span><span class="w mve" style="background:#ff55551c">[MVE] fate diff → 托管（缺席者＝自有归属，自动让位；池空则整体中止）</span></div>
+<div class="bar"><span class="p">@LOWEST</span><span class="w c" style="background:#a8a8a81c">[C] 墓碑收集：processDrops 匹配死亡快照 → removeDrops 清空集合</span></div>
+<div class="bar"><span class="p">事件结束</span><span class="w van" style="background:#e8e8e81c">剩余物品 addFreshEntity —— 真正落地</span></div>
+
+<h2>场景走查：怕死的玩家</h2>
+<div class="step"><div class="n">1</div><div class="t"><span class="s van">致命一击</span>　伤害结算完成，health ≤ 0。</div></div>
+<div class="step"><div class="n">2</div><div class="t"><span class="s d">图腾 D 逐个生效</span>　半背包图腾在濒死瞬间反复回滚（每次 health=1），直到耗尽。</div></div>
+<div class="step"><div class="n">3</div><div class="t"><span class="s a">互助 A 接管</span>　死亡宣告被取消 → 进入濒死状态，队友可救助；<span class="s van">若获救：复活，后续所有模组全程无感。</span></div></div>
+<div class="step"><div class="n">4</div><div class="t"><span class="s van">无人救助 → 血流殆尽</span>　kill() 以 BLED_TO_DEATH 伤害源重新走一遍完整死亡管线，这次无人取消 → 真实死亡宣告。</div></div>
+<div class="step"><div class="n">5</div><div class="t"><span class="s mve">MVE 快照冻结</span>　<span class="s c">C 死亡快照</span>　同一次事件派发内先后完成（HIGHEST 与 LOWEST）。</div></div>
+<div class="step"><div class="n">6</div><div class="t"><span class="s b">不掉落 B 条件判定</span>　身上存在不掉落物/套装保护 → 整体接管，MVE 检测到空池自动中止；<span class="s mve">否则 MVE 托管 → 选择窗口开启</span>（PVP 拾取同步可用）。</div></div>
+<div class="step"><div class="n">7</div><div class="t"><span class="s c">墓碑 C 接管</span>　选择结束（保留/超时/放弃）→ 未保留物品重放掉落事件 → C 在死亡点收下它们、经验为 0；无人接手则原地掉落。</div></div>
+<div class="step"><div class="n">8</div><div class="t"><span class="s van">重生</span>　<span class="s b">B 还原回收物</span>　<span class="s mve">MVE 返还保留物</span>　各回各家，互不重叠。</div></div>
+
+<h2>铁律（结构性约束）</h2>
+<div class="rule"><b style="color:#ff5555">MVE 的生效时机夹在中间</b>：比保留类模组更晚（LOW），比墓碑类更早（LOWEST 之前）。绝不可提到 HIGHEST——那是唯一会卷走保留物的位置。</div>
+<div class="rule"><b style="color:#e8e8e8">缺席即自有归属</b>：死亡快照里有、掉落池里没有的物品，MVE 一律标记“禁用”让位——这是对一切保留类模组的通用兼容，无需逐一适配。</div>
+<div class="rule"><b style="color:#55ffff">条件回收时 MVE 整体中止</b>：池空 ⇒ 无可托管 ⇒ 静默退出（含经验处理），把舞台完整让给 B。</div>
+<div class="rule"><b style="color:#a8a8a8">结算重放是墓碑的唯一接管入口</b>：MVE 结算时把未保留物品重放掉落事件，C 在 LOWEST 自然命中死亡快照建墓（位置=死亡点，经验=0）。</div>
+<div class="rule"><b style="color:#ffaa00">图腾在宣告前、互助在宣告时、MVE/墓碑在掉落时</b>：三道关卡分属三个阶段，天然有序，互不抢戏。</div>
+
+</body>
+</html>
