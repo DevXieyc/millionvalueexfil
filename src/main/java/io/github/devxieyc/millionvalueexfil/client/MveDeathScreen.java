@@ -57,6 +57,7 @@ public final class MveDeathScreen extends DeathScreen {
 
     @Override
     protected void init() {
+        if (this.minecraft != null) XpMath.bind(this.minecraft.level);
         int bw = 150;
         addRenderableWidget(Button.builder(Component.translatable("mve.death.title_screen"), b -> confirmExit())
                 .bounds(this.width / 2 - 155, this.height - 28, bw, 20).build());
@@ -193,12 +194,8 @@ public final class MveDeathScreen extends DeathScreen {
     private long maxKeep() {
         int choice = (int) view.entries().stream().filter(e -> e.state() != 2).count();
         int n = 0;
-        while (n < choice && cost(n + 1) <= view.xpTotal()) n++;
+        while (n < choice && XpMath.cost(n + 1) <= view.xpTotal()) n++;
         return n;
-    }
-
-    private static int cost(int n) {
-        return 1395 * n * (n + 1) / 1332;
     }
 
     private int keepEstimate() {

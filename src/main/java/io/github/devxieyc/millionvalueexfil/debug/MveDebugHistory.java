@@ -106,7 +106,19 @@ public final class MveDebugHistory {
                 record.phase = txn.phase;
                 dirty = true;
             }
-            if (record.entries.size() != txn.entries.size()) {
+            boolean entriesChanged = record.entries.size() != txn.entries.size();
+            if (!entriesChanged) {
+                for (int i = 0; i < txn.entries.size(); i++) {
+                    TxEntry e = txn.entries.get(i);
+                    Entry re = record.entries.get(i);
+                    if (re.slot() != e.slot || re.state() != e.state.ordinal()
+                            || !ItemStack.matches(re.stack(), e.stack)) {
+                        entriesChanged = true;
+                        break;
+                    }
+                }
+            }
+            if (entriesChanged) {
                 record.entries.clear();
                 for (TxEntry e : txn.entries) record.entries.add(new Entry(e.slot, e.state.ordinal(), e.stack));
                 dirty = true;

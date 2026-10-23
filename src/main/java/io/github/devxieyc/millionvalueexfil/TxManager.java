@@ -105,8 +105,12 @@ public final class TxManager {
             return;
         }
         Mve.LOGGER.info("[MVE] death intercepted: {} item(s), xp level {}", items.size(), player.experienceLevel);
+        // Capture XP as points derived from the vanilla curve: player.totalExperience
+        // desyncs from level (enchanting, /xp L, level-granting mods) and must not be
+        // the source of truth. NFD-verified: getXpNeededForNextLevel() reads the level.
+        int xpPoints = XpMath.points(player.level(), player.experienceLevel, player.experienceProgress);
         Pending pending = new Pending(items, player.experienceLevel, player.experienceProgress,
-                player.totalExperience, player.blockPosition(), player.level().dimension(),
+                xpPoints, player.blockPosition(), player.level().dimension(),
                 player.getCombatTracker().getDeathMessage(), player.level().getLevelData().isHardcore(),
                 player.server.getTickCount(), source.typeHolder().unwrapKey().orElse(null));
         player.experienceLevel = 0;
@@ -172,6 +176,8 @@ public final class TxManager {
                 matched++;
             } else {
                 entries.add(new TxEntry(UUID.randomUUID(), item.slot(), item.stack(), TxEntry.State.DISABLED));
+                Mve.LOGGER.warn("[MVE] entry disabled (no exact drop match; likely merged/modified downstream): {} x{}",
+                        item.stack().getItem(), item.stack().getCount());
             }
         }
         if (drops.isEmpty()) {
@@ -197,7 +203,7 @@ public final class TxManager {
             txn.ticksLeft--;
             if (txn.ticksLeft <= 0) {
                 txn.ticksLeft = 0;
-                settle(player, txn);
+                settle(player, txn, true);
             } else {
                 writeTxn(player, txn);
                 if (now % 20 == 0) {
@@ -219,7 +225,12 @@ public final class TxManager {
 
     // ---- settlement ----
 
-    private static void settle(ServerPlayer player, DeathTx txn) {
+    /**
+     * Settles a transaction. {@code persist} must be false when the caller already
+     * removed the txn from NBT (onRespawn path): writing it back re-armed the
+     * login-delivery path and duplicated every kept item on next login.
+     */
+    private static void settle(ServerPlayer player, DeathTx txn, boolean persist) {
         ServerLevel level = player.server.getLevel(txn.dimension);
         if (level == null) level = player.serverLevel();
         int dropped = (int) txn.entries.stream().filter(e -> e.state == TxEntry.State.DEFAULT).count();
@@ -243,7 +254,7 @@ public final class TxManager {
         txn.phase = DeathTx.PHASE_DROPPED;
         txn.ticksLeft = 0;
         txn.version++;
-        writeTxn(player, txn);
+        if (persist) writeTxn(player, txn);
         Mve.LOGGER.info("[MVE] settled: {} item(s) kept for return, {} dropped at {}, xp keep={} lost={}",
                 txn.reservedCount(), dropped, txn.pos.toShortString(), keep, lost);
         broadcastView(player, txn, false);
@@ -251,9 +262,11 @@ public final class TxManager {
     }
 
     public static void onRespawn(ServerPlayer player) {
+        // takeTxn consumes the NBT copy first: from here on nothing re-persists the
+        // txn (settle runs with persist=false), so login delivery cannot fire twice.
         DeathTx txn = takeTxn(player);
         if (txn == null) return;
-        if (txn.phase == DeathTx.PHASE_ACTIVE) settle(player, txn);
+        if (txn.phase == DeathTx.PHASE_ACTIVE) settle(player, txn, false);
         returnReserved(player, txn);
         if (txn.xpKeep > 0) {
             player.giveExperiencePoints(txn.xpKeep);
@@ -303,10 +316,25 @@ public final class TxManager {
         DeathTx txn = readTxn(player);
         if (txn == null) return;
         if (txn.phase == DeathTx.PHASE_DROPPED) {
+            // Consume before delivering: delivery must be impossible to re-enter.
+            txn = takeTxn(player);
             int returned = returnReserved(player, txn);
             if (txn.xpKeep > 0) player.giveExperiencePoints(txn.xpKeep);
             Mve.LOGGER.info("[MVE] login delivery: {} reserved item(s), keep xp {}", returned, txn.xpKeep);
-            writeTxn(player, null);
+            return;
+        }
+        if (!player.isDeadOrDying()) {
+            // Stale ACTIVE txn on a living player (e.g. crash during selection):
+            // liquidate instead of resurrecting a timer nobody can see.
+            Mve.LOGGER.warn("[MVE] stale ACTIVE txn on login for alive player {}, liquidating {} entry(ies)",
+                    player.getScoreboardName(), txn.entries.size());
+            txn = takeTxn(player);
+            ServerLevel level = player.server.getLevel(txn.dimension);
+            if (level == null) level = player.serverLevel();
+            dropAll(level, txn);
+            ExperienceOrb.award(level, Vec3.atCenterOf(txn.pos),
+                    Math.min(7 * txn.xpLevelAtDeath, 100));
+            closeAll(player.server, txn.ownerId);
             return;
         }
         sendView(player, txn, false, player.getScore());
@@ -400,14 +428,27 @@ public final class TxManager {
     public static void handleSelect(ServerPlayer player, MveNet.SelectPayload payload) {
         DeathTx txn = readTxn(player);
         if (txn == null || txn.phase != DeathTx.PHASE_ACTIVE
-                || !txn.txnId.equals(payload.txnId()) || txn.version < payload.version()) return;
+                || !txn.txnId.equals(payload.txnId()) || txn.version < payload.version()) {
+            Mve.LOGGER.warn("[MVE] select rejected (stale/unknown): player={} txn={} ver={}<={} phase={}",
+                    player.getScoreboardName(), payload.txnId(), txn == null ? -1 : txn.version,
+                    payload.version(), txn == null ? "none" : txn.phase);
+            return;
+        }
         if (payload.reserve()) {
             TxEntry entry = txn.find(payload.entryId());
-            if (entry == null || entry.state == TxEntry.State.DISABLED) return;
+            if (entry == null || entry.state == TxEntry.State.DISABLED) {
+                Mve.LOGGER.warn("[MVE] reserve rejected: player={} entry={} (missing/disabled)",
+                        player.getScoreboardName(), payload.entryId());
+                return;
+            }
             if (entry.state == TxEntry.State.DEFAULT && !txn.toggle(payload.entryId())) return;
         } else {
             TxEntry entry = txn.find(payload.entryId());
-            if (entry == null) return;
+            if (entry == null) {
+                Mve.LOGGER.warn("[MVE] unreserve rejected: player={} entry={} (missing)",
+                        player.getScoreboardName(), payload.entryId());
+                return;
+            }
             if (entry.state == TxEntry.State.RESERVED) {
                 entry.state = TxEntry.State.DEFAULT;
                 txn.version++;
